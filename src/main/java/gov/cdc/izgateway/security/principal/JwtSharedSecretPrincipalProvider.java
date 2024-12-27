@@ -12,13 +12,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.Nullable;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import javax.crypto.spec.SecretKeySpec;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -31,7 +31,7 @@ public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
 
     @Autowired
     public JwtSharedSecretPrincipalProvider(@Nullable GroupToRoleMapper groupToRoleMapper,
-                                            @Nullable ScopeToRoleMapper scopeToRoleMapper) {
+                                               @Nullable ScopeToRoleMapper scopeToRoleMapper) {
         this.groupToRoleMapper = groupToRoleMapper;
         this.scopeToRoleMapper = scopeToRoleMapper;
     }
@@ -43,74 +43,77 @@ public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
             return null;
         }
 
+        SecretKeySpec secretKey = new SecretKeySpec(sharedSecret.getBytes(), "HmacSHA256");
+
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             log.debug("No JWT token found in Authorization header");
             return null;
         }
 
-        Claims claims = parseJwt(authHeader);
-        if (claims == null) {
-            return null;
-        }
-        log.debug("JWT claims for current request: {}", claims);
+        // We do not want to accept JWT tokens without From/To dates
+        JwtTimestampValidator timestampValidator = new JwtTimestampValidator();
+        DelegatingOAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
+                timestampValidator,
+                new JwtClaimValidator<>(JwtClaimNames.EXP, Objects::nonNull),
+                new JwtClaimValidator<>(JwtClaimNames.IAT, Objects::nonNull)
+        );
 
-        return buildPrincipal(claims);
-    }
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder
+                .withSecretKey(secretKey)
+                .build();
+        jwtDecoder.setJwtValidator(validator);
 
-    private Claims parseJwt(String authHeader) {
+        Jwt jwt;
+
         try {
-            SecretKey secretKey = Keys.hmacShaKeyFor(sharedSecret.getBytes());
             String token = authHeader.substring(7);
-            return Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).getBody();
+            jwt = jwtDecoder.decode(token);
         } catch (Exception e) {
             log.warn("Error parsing JWT token", e);
             return null;
         }
-    }
 
-    private IzgPrincipal buildPrincipal(Claims claims) {
         IzgPrincipal principal = new JWTPrincipal();
-        principal.setName(claims.getSubject());
-        principal.setOrganization(claims.get("organization", String.class));
-        principal.setValidFrom(claims.getNotBefore());
-        principal.setValidTo(claims.getExpiration());
-        principal.setSerialNumber(claims.getId());
-        principal.setIssuer(claims.getIssuer());
-        principal.setAudience(Collections.singletonList(claims.getAudience()));
-        addRolesFromScopes(claims, principal);
-        addRolesFromGroups(claims, principal);
-        log.debug("Roles created from JWT: {}", principal.getRoles());
+        principal.setName(jwt.getSubject());
+        principal.setOrganization(jwt.getClaim("organization"));
+        principal.setValidFrom(Date.from(Objects.requireNonNull(jwt.getIssuedAt())));
+        principal.setValidTo(Date.from(Objects.requireNonNull(jwt.getExpiresAt())));
+        principal.setSerialNumber(jwt.getId());
+        // Nimbus doesn't like non-URI issuers, pull via raw claim
+        principal.setIssuer(jwt.getClaim("iss"));
+        principal.setAudience(jwt.getAudience());
+        addRolesFromScopes(jwt.getClaimAsString("scope"), principal);
+        addRolesFromGroups(jwt.getClaimAsStringList("groups"), principal);
+
+        log.debug("JWT claims for current request: {}", jwt.getClaims());
 
         return principal;
     }
 
-    private void addRolesFromScopes(Claims claims, IzgPrincipal principal) {
+    private void addRolesFromScopes(String scopesList, IzgPrincipal principal) {
         if (scopeToRoleMapper == null) {
             log.debug("No scope to role mapper was set. Skipping scope to role mapping.");
             return;
         }
-
-        TreeSet<String> scopes = extractScopes(claims);
+        TreeSet<String> scopes = extractScopes(scopesList);
         principal.getRoles().addAll(scopeToRoleMapper.mapScopesToRoles(scopes));
     }
 
-    private TreeSet<String> extractScopes(Claims claims) {
+    private TreeSet<String> extractScopes(String scopeString) {
         TreeSet<String> scopes = new TreeSet<>();
-        String scopeString = claims.get("scope", String.class);
         if (!StringUtils.isEmpty(scopeString)) {
             Collections.addAll(scopes, scopeString.split(" "));
         }
         return scopes;
     }
 
-    private void addRolesFromGroups(Claims claims, IzgPrincipal principal) {
+    private void addRolesFromGroups(List<String> groupsList, IzgPrincipal principal) {
         if (groupToRoleMapper == null) {
             log.debug("No group to role mapper was set. Skipping group to role mapping.");
             return;
         }
 
-        List<String> groupsList = claims.get("groups", List.class);
         if (groupsList == null || groupsList.isEmpty()) {
             return;
         }
