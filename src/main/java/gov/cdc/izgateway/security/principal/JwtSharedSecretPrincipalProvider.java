@@ -3,9 +3,6 @@ package gov.cdc.izgateway.security.principal;
 import gov.cdc.izgateway.principal.provider.JwtPrincipalProvider;
 import gov.cdc.izgateway.security.IzgPrincipal;
 import gov.cdc.izgateway.security.JWTPrincipal;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -16,7 +13,6 @@ import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.*;
 
@@ -25,6 +21,13 @@ import java.util.*;
 public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
     @Value("${jwt.shared-secret:}")
     private String sharedSecret;
+
+    @Value("${jwt.user-permissions-claim}")
+    private String userPermissionsClaim;
+
+    @Value("${jwt.scopes-claim}")
+    private String scopesClaim;
+
 
     private final GroupToRoleMapper groupToRoleMapper;
     private final ScopeToRoleMapper scopeToRoleMapper;
@@ -83,43 +86,67 @@ public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
         // Nimbus doesn't like non-URI issuers, pull via raw claim
         principal.setIssuer(jwt.getClaim("iss"));
         principal.setAudience(jwt.getAudience());
-        addRolesFromScopes(jwt.getClaimAsString("scope"), principal);
-        addRolesFromGroups(jwt.getClaimAsStringList("groups"), principal);
+        addScopes(jwt.getClaim(scopesClaim), principal);
+        addRolesFromScopes(jwt.getClaim(scopesClaim), principal);
+        addRolesFromGroups(jwt.getClaim(userPermissionsClaim), principal);
 
         log.debug("JWT claims for current request: {}", jwt.getClaims());
 
         return principal;
     }
 
-    private void addRolesFromScopes(String scopesList, IzgPrincipal principal) {
+    private void addScopes(Object scopesClaim, IzgPrincipal principal) {
+        TreeSet<String> scopes = extractClaimList(scopesClaim);
+        principal.setScopes(scopes);
+    }
+
+    private void addRolesFromScopes(Object scopesClaim, IzgPrincipal principal) {
         if (scopeToRoleMapper == null) {
             log.debug("No scope to role mapper was set. Skipping scope to role mapping.");
             return;
         }
-        TreeSet<String> scopes = extractScopes(scopesList);
-        principal.getRoles().addAll(scopeToRoleMapper.mapScopesToRoles(scopes));
+        TreeSet<String> scopes = extractClaimList(scopesClaim);
+        principal
+                .getRoles()
+                .addAll(
+                        scopeToRoleMapper.mapScopesToRoles(scopes)
+                );
     }
 
-    private TreeSet<String> extractScopes(String scopeString) {
+    private TreeSet<String> extractClaimList(Object scopeList) {
+        // Oauth2 RFC (https://www.rfc-editor.org/rfc/rfc6749) states scopes
+        // should be "expressed as a list of space-
+        //   delimited, case-sensitive strings"
+        // However Okta seems to send back array of strings.
         TreeSet<String> scopes = new TreeSet<>();
-        if (!StringUtils.isEmpty(scopeString)) {
-            Collections.addAll(scopes, scopeString.split(" "));
+        if (scopeList instanceof String scopeString) {
+            if (!StringUtils.isEmpty(scopeString)) {
+                Collections.addAll(scopes, scopeString.split(" "));
+            }
+        } else if (scopeList instanceof Collection<?> collection) {
+            collection.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .forEach(scopes::add);
         }
         return scopes;
     }
 
-    private void addRolesFromGroups(List<String> groupsList, IzgPrincipal principal) {
+    private void addRolesFromGroups(Object groupsClaim, IzgPrincipal principal) {
         if (groupToRoleMapper == null) {
             log.debug("No group to role mapper was set. Skipping group to role mapping.");
             return;
         }
 
-        if (groupsList == null || groupsList.isEmpty()) {
+        TreeSet<String> groupsList = extractClaimList(groupsClaim);
+        if (groupsList.isEmpty()) {
             return;
         }
-        Set<String> groups = new TreeSet<>(groupsList);
 
-        Set<String> roles = groupToRoleMapper.mapGroupsToRoles(groups);
-        principal.getRoles().addAll(roles);
+        principal
+                .getRoles()
+                .addAll(
+                        groupToRoleMapper.mapGroupsToRoles(groupsList)
+                );
     }
 }

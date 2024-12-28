@@ -72,45 +72,64 @@ public class JwtJwksPrincipalProvider implements JwtPrincipalProvider {
         principal.setSerialNumber(jwt.getId());
         principal.setIssuer(jwt.getIssuer().toString());
         principal.setAudience(jwt.getAudience());
-
-        addRolesFromGroups(jwt.getClaimAsStringList(userPermissionsClaim), principal);
-
-        addRolesFromScopes(jwt.getClaimAsString(scopesClaim), principal);
+        addScopes(jwt.getClaim(scopesClaim), principal);
+        addRolesFromGroups(jwt.getClaim(userPermissionsClaim), principal);
+        addRolesFromScopes(jwt.getClaim(scopesClaim), principal);
 
         return principal;
     }
 
-    private void addRolesFromScopes(String scopesList, IzgPrincipal principal) {
+    private void addScopes(Object scopesClaim, IzgPrincipal principal) {
+        TreeSet<String> scopes = extractClaimList(scopesClaim);
+        principal.setScopes(scopes);
+    }
+
+    private void addRolesFromScopes(Object scopesClaim, IzgPrincipal principal) {
         if (scopeToRoleMapper == null) {
             log.debug("No scope to role mapper was set. Skipping scope to role mapping.");
             return;
         }
-
-        TreeSet<String> scopes = extractScopes(scopesList);
-        principal.getRoles().addAll(scopeToRoleMapper.mapScopesToRoles(scopes));
+        TreeSet<String> scopes = extractClaimList(scopesClaim);
+        principal
+                .getRoles()
+                .addAll(
+                        scopeToRoleMapper.mapScopesToRoles(scopes)
+                );
     }
 
-    private TreeSet<String> extractScopes(String scopesList) {
+    private TreeSet<String> extractClaimList(Object scopeList) {
+        // Oauth2 RFC (https://www.rfc-editor.org/rfc/rfc6749) states scopes
+        // should be "expressed as a list of space-delimited, case-sensitive strings"
+        // However, Okta seems to send back an array of strings.
         TreeSet<String> scopes = new TreeSet<>();
-
-        if (!StringUtils.isEmpty(scopesList)) {
-            Collections.addAll(scopes, scopesList.split(" "));
+        if (scopeList instanceof String scopeString) {
+            if (!StringUtils.isEmpty(scopeString)) {
+                Collections.addAll(scopes, scopeString.split(" "));
+            }
+        } else if (scopeList instanceof Collection<?> collection) {
+            collection.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .forEach(scopes::add);
         }
         return scopes;
     }
 
-    private void addRolesFromGroups(List<String> groupsList, IzgPrincipal principal) {
+    private void addRolesFromGroups(Object groupsClaim, IzgPrincipal principal) {
         if (groupToRoleMapper == null) {
             log.debug("No group to role mapper was set. Skipping group to role mapping.");
             return;
         }
 
-        if (groupsList == null || groupsList.isEmpty()) {
+        TreeSet<String> groupsList = extractClaimList(groupsClaim);
+        if (groupsList.isEmpty()) {
             return;
         }
-        Set<String> groups = new TreeSet<>(groupsList);
 
-        Set<String> roles = groupToRoleMapper.mapGroupsToRoles(groups);
-        principal.getRoles().addAll(roles);
+        principal
+                .getRoles()
+                .addAll(
+                        groupToRoleMapper.mapGroupsToRoles(groupsList)
+                );
     }
 }
