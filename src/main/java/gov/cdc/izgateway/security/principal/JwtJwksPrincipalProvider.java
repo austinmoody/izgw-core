@@ -66,16 +66,17 @@ public class JwtJwksPrincipalProvider implements JwtPrincipalProvider {
 
         IzgPrincipal principal = new JWTPrincipal();
         principal.setName(jwt.getSubject());
-        principal.setOrganization(jwt.getClaim("organization"));
+        principal.setOrganization(getClaimNestedAsString(jwt, "organization"));
         principal.setValidFrom(Date.from(Objects.requireNonNull(jwt.getIssuedAt())));
         principal.setValidTo(Date.from(Objects.requireNonNull(jwt.getExpiresAt())));
         principal.setSerialNumber(jwt.getId());
-        principal.setIssuer(jwt.getIssuer().toString());
+        // Nimbus doesn't like non-URI issuers, pull via raw claim
+        principal.setIssuer(getClaimNestedAsString(jwt, "iss"));
         principal.setAudience(jwt.getAudience());
-        addScopes(jwt.getClaim(scopesClaim), principal);
-        addRolesFromGroups(jwt.getClaim(userPermissionsClaim), principal);
-        addRolesFromScopes(jwt.getClaim(scopesClaim), principal);
-
+        addScopes(getClaimNested(jwt, scopesClaim), principal);
+        addRolesFromScopes(getClaimNested(jwt, scopesClaim), principal);
+        addRolesFromGroups(getClaimNested(jwt, userPermissionsClaim), principal);
+        log.debug("JWT claims for current request: {}", jwt.getClaims());
         return principal;
     }
 
@@ -99,8 +100,9 @@ public class JwtJwksPrincipalProvider implements JwtPrincipalProvider {
 
     private TreeSet<String> extractClaimList(Object scopeList) {
         // Oauth2 RFC (https://www.rfc-editor.org/rfc/rfc6749) states scopes
-        // should be "expressed as a list of space-delimited, case-sensitive strings"
-        // However, Okta seems to send back an array of strings.
+        // should be "expressed as a list of space-
+        //   delimited, case-sensitive strings"
+        // However Okta seems to send back array of strings.
         TreeSet<String> scopes = new TreeSet<>();
         if (scopeList instanceof String scopeString) {
             if (!StringUtils.isEmpty(scopeString)) {
@@ -131,5 +133,44 @@ public class JwtJwksPrincipalProvider implements JwtPrincipalProvider {
                 .addAll(
                         groupToRoleMapper.mapGroupsToRoles(groupsList)
                 );
+    }
+
+    private String getClaimNestedAsString(Jwt jwt, String claimName) {
+        Object claimValue = getClaimNested(jwt, claimName);
+        return claimValue != null ? claimValue.toString() : null;
+    }
+
+    private Object getClaimNested(Jwt jwt, String claimPath) {
+        String[] claimPathParts = claimPath.split("\\.");
+        Object claim = jwt.getClaim(claimPathParts[0]);
+
+        if (claimPathParts.length > 1 && !(claim instanceof Map<?,?>)) {
+            /*
+             Catches situation where you have configured groups.access.
+             The initial pull of groups returns an array list.
+             Without this, we'd end up returning that pull from groups
+             as the claim Object, and ignore the fact that the user had
+             configured another level.
+             Seemed dangerous.
+            */
+            return null;
+        }
+
+        if (claim instanceof Map<?, ?> map && claimPathParts.length > 1) {
+            for (int i = 1; i < claimPathParts.length; i++) {
+                claim = map.get(claimPathParts[i]);
+                if (claim instanceof Map<?, ?>) {
+                    map = (Map<?, ?>) claim;
+                } else if (i < claimPathParts.length - 1) {
+                    /*
+                    Again, catches a situation where the user has configured groups.level1.level2 and at level1
+                    we have obtained a non-Map. So basically level2 didn't exist, but we don't want to return
+                    the value pulled from level1.
+                     */
+                    return null;
+                }
+            }
+        }
+        return claim;
     }
 }
