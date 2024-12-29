@@ -88,7 +88,7 @@ public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
         principal.setAudience(jwt.getAudience());
         addScopes(jwt.getClaim(scopesClaim), principal);
         addRolesFromScopes(jwt.getClaim(scopesClaim), principal);
-        addRolesFromGroups(jwt.getClaim(userPermissionsClaim), principal);
+        addRolesFromGroups(getClaimNested(jwt, userPermissionsClaim), principal);
 
         log.debug("JWT claims for current request: {}", jwt.getClaims());
 
@@ -148,5 +148,39 @@ public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
                 .addAll(
                         groupToRoleMapper.mapGroupsToRoles(groupsList)
                 );
+    }
+
+    private Object getClaimNested(Jwt jwt, String claimPath) {
+        String[] claimPathParts = claimPath.split("\\.");
+        Object claim = jwt.getClaim(claimPathParts[0]);
+
+        if (claimPathParts.length > 1 && !(claim instanceof Map<?,?>)) {
+            /*
+             Catches situation where you have configured groups.access.
+             The initial pull of groups returns an array list.
+             Without this, we'd end up returning that pull from groups
+             as the claim Object, and ignore the fact that the user had
+             configured another level.
+             Seemed dangerous.
+            */
+            return null;
+        }
+
+        if (claim instanceof Map<?, ?> map && claimPathParts.length > 1) {
+            for (int i = 1; i < claimPathParts.length; i++) {
+                claim = map.get(claimPathParts[i]);
+                if (claim instanceof Map<?, ?>) {
+                    map = (Map<?, ?>) claim;
+                } else if (i < claimPathParts.length - 1) {
+                    /*
+                    Again, catches a situation where the user has configured groups.level1.level2 and at level1
+                    we have obtained a non-Map. So basically level2 didn't exist, but we don't want to return
+                    the value pulled from level1.
+                     */
+                    return null;
+                }
+            }
+        }
+        return claim;
     }
 }
