@@ -79,19 +79,17 @@ public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
 
         IzgPrincipal principal = new JWTPrincipal();
         principal.setName(jwt.getSubject());
-        principal.setOrganization(jwt.getClaim("organization"));
+        principal.setOrganization(getClaimNestedAsString(jwt, "organization"));
         principal.setValidFrom(Date.from(Objects.requireNonNull(jwt.getIssuedAt())));
         principal.setValidTo(Date.from(Objects.requireNonNull(jwt.getExpiresAt())));
         principal.setSerialNumber(jwt.getId());
         // Nimbus doesn't like non-URI issuers, pull via raw claim
-        principal.setIssuer(jwt.getClaim("iss"));
+        principal.setIssuer(getClaimNestedAsString(jwt, "iss"));
         principal.setAudience(jwt.getAudience());
-        addScopes(jwt.getClaim(scopesClaim), principal);
-        addRolesFromScopes(jwt.getClaim(scopesClaim), principal);
+        addScopes(getClaimNested(jwt, scopesClaim), principal);
+        addRolesFromScopes(getClaimNested(jwt, scopesClaim), principal);
         addRolesFromGroups(getClaimNested(jwt, userPermissionsClaim), principal);
-
         log.debug("JWT claims for current request: {}", jwt.getClaims());
-
         return principal;
     }
 
@@ -148,6 +146,11 @@ public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
                 .addAll(
                         groupToRoleMapper.mapGroupsToRoles(groupsList)
                 );
+    }
+
+    private String getClaimNestedAsString(Jwt jwt, String claimName) {
+        Object claimValue = getClaimNested(jwt, claimName);
+        return claimValue != null ? claimValue.toString() : null;
     }
 
     private Object getClaimNested(Jwt jwt, String claimPath) {
