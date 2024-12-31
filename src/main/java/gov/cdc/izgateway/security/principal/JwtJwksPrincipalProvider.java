@@ -21,8 +21,8 @@ public class JwtJwksPrincipalProvider implements JwtPrincipalProvider {
     @Value("${jwt.jwk-set-uri:}")
     private String jwkSetUri;
 
-    @Value("${jwt.user-permissions-claim}")
-    private String userPermissionsClaim;
+    @Value("${jwt.roles-claim}")
+    private String rolesClaim;
 
     @Value("${jwt.scopes-claim}")
     private String scopesClaim;
@@ -64,7 +64,7 @@ public class JwtJwksPrincipalProvider implements JwtPrincipalProvider {
             return null;
         }
 
-        IzgPrincipal principal = new JWTPrincipal();
+        IzgPrincipal principal = new JWTPrincipal(jwt, groupToRoleMapper, scopeToRoleMapper, rolesClaim, scopesClaim);
         principal.setName(jwt.getSubject());
         principal.setOrganization(getClaimNestedAsString(jwt, "organization"));
         principal.setValidFrom(Date.from(Objects.requireNonNull(jwt.getIssuedAt())));
@@ -75,7 +75,7 @@ public class JwtJwksPrincipalProvider implements JwtPrincipalProvider {
         principal.setAudience(jwt.getAudience());
         addScopes(getClaimNested(jwt, scopesClaim), principal);
         addRolesFromScopes(getClaimNested(jwt, scopesClaim), principal);
-        addRolesFromGroups(getClaimNested(jwt, userPermissionsClaim), principal);
+        addRolesFromGroups(getClaimNested(jwt, rolesClaim), principal);
         log.debug("JWT claims for current request: {}", jwt.getClaims());
         return principal;
     }
