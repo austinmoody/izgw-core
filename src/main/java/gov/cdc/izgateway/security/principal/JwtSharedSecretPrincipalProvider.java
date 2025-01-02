@@ -30,12 +30,15 @@ public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
 
     private final GroupToRoleMapper groupToRoleMapper;
     private final ScopeToRoleMapper scopeToRoleMapper;
+    private final JwtTokenExtractor jwtTokenExtractor;
 
     @Autowired
     public JwtSharedSecretPrincipalProvider(@Nullable GroupToRoleMapper groupToRoleMapper,
-                                               @Nullable ScopeToRoleMapper scopeToRoleMapper) {
+                                            @Nullable ScopeToRoleMapper scopeToRoleMapper,
+                                            JwtTokenExtractor jwtTokenExtractor) {
         this.groupToRoleMapper = groupToRoleMapper;
         this.scopeToRoleMapper = scopeToRoleMapper;
+        this.jwtTokenExtractor = jwtTokenExtractor;
     }
 
     @Override
@@ -47,41 +50,41 @@ public class JwtSharedSecretPrincipalProvider implements JwtPrincipalProvider {
 
         SecretKeySpec secretKey = new SecretKeySpec(sharedSecret.getBytes(), "HmacSHA256");
 
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.debug("No JWT token found in Authorization header");
-            return null;
-        }
-
-        // We do not want to accept JWT tokens without From/To dates
-        JwtTimestampValidator timestampValidator = new JwtTimestampValidator();
-        DelegatingOAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
-                timestampValidator,
-                new JwtClaimValidator<>(JwtClaimNames.EXP, Objects::nonNull),
-                new JwtClaimValidator<>(JwtClaimNames.IAT, Objects::nonNull)
-        );
-
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder
-                .withSecretKey(secretKey)
-                .build();
-        jwtDecoder.setJwtValidator(validator);
-
-        Jwt jwt;
-
         try {
-            String token = authHeader.substring(7);
+            String token = jwtTokenExtractor.extractToken(request);
+
+            // We do not want to accept JWT tokens without From/To dates
+            JwtTimestampValidator timestampValidator = new JwtTimestampValidator();
+            DelegatingOAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
+                    timestampValidator,
+                    new JwtClaimValidator<>(JwtClaimNames.EXP, Objects::nonNull),
+                    new JwtClaimValidator<>(JwtClaimNames.IAT, Objects::nonNull)
+            );
+
+
+            NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder
+                    .withSecretKey(secretKey)
+                    .build();
+            jwtDecoder.setJwtValidator(validator);
+
+            Jwt jwt;
+
             jwt = jwtDecoder.decode(token);
+
+            log.debug("JWT claims for current request: {}", jwt.getClaims());
+            return new JWTPrincipal(jwt,
+                    groupToRoleMapper,
+                    scopeToRoleMapper,
+                    rolesClaim,
+                    scopesClaim
+            );
+
+        } catch (InvalidJwtTokenException e) {
+            return null;
         } catch (Exception e) {
-            log.warn("Error parsing JWT token", e);
+            log.warn("Issue processing JWT token", e);
             return null;
         }
-
-        return new JWTPrincipal(jwt,
-                groupToRoleMapper,
-                scopeToRoleMapper,
-                rolesClaim,
-                scopesClaim
-        );
     }
 
 }
