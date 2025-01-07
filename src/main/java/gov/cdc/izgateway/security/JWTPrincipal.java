@@ -4,6 +4,7 @@ import gov.cdc.izgateway.security.principal.GroupToRoleMapper;
 import gov.cdc.izgateway.security.principal.ScopeToRoleMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.lang.Nullable;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
@@ -19,10 +20,10 @@ public class JWTPrincipal extends IzgPrincipal {
     private final ScopeToRoleMapper scopeToRoleMapper;
 
     public JWTPrincipal(Jwt jwt,
-                        GroupToRoleMapper groupToRoleMapper,
-                        ScopeToRoleMapper scopeToRoleMapper,
                         String rolesClaim,
-                        String scopesClaim) {
+                        String scopesClaim,
+                        @Nullable GroupToRoleMapper groupToRoleMapper,
+                        @Nullable ScopeToRoleMapper scopeToRoleMapper) {
         this.groupToRoleMapper = groupToRoleMapper;
         this.scopeToRoleMapper = scopeToRoleMapper;
 

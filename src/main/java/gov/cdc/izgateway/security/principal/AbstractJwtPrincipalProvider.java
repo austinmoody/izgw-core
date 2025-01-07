@@ -63,10 +63,10 @@ public abstract class AbstractJwtPrincipalProvider implements JwtPrincipalProvid
             log.debug("JWT claims for current request: {}", jwt.getClaims());
 
             return new JWTPrincipal(jwt,
-                    groupToRoleMapper,
-                    scopeToRoleMapper,
                     rolesClaim,
-                    scopesClaim
+                    scopesClaim,
+                    groupToRoleMapper,
+                    scopeToRoleMapper
             );
 
         } catch (InvalidJwtTokenException e) {
