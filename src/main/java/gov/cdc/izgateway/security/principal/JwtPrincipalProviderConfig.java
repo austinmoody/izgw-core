@@ -3,11 +3,9 @@ package gov.cdc.izgateway.security.principal;
 import gov.cdc.izgateway.principal.provider.JwtPrincipalProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ComponentScan("gov.cdc.izgateway.security.principal")
 public class JwtPrincipalProviderConfig {
     @Value("${jwt.provider:shared-secret}")
     private String jwtProvider;
