@@ -48,69 +48,56 @@ public abstract class AbstractJwtPrincipalProvider implements JwtPrincipalProvid
     protected DelegatingOAuth2TokenValidator<Jwt> createValidator() {
         JwtTimestampValidator timestampValidator = new JwtTimestampValidator();
 
-        // Validator for 'exp' presence - required
+        // Make sure exp is in token, we are requiring it
         OAuth2TokenValidator<Jwt> expPresenceValidator = token -> {
             if (!token.getClaims().containsKey("exp")) {
                 return OAuth2TokenValidatorResult.failure(
-                        new OAuth2Error("invalid_token", "Token must contain exp claim", null)
+                        new OAuth2Error("token_missing_claim",
+                                "token must contain exp claim", null)
                 );
             }
             return OAuth2TokenValidatorResult.success();
         };
 
-        // Custom validator for 'iat' OR 'nbf' presence in raw payload
-        OAuth2TokenValidator<Jwt> timeConstraintValidator = token -> {
+        // Parse claims directly for a couple scenarios
+        OAuth2TokenValidator<Jwt> directClaimsVerification = token -> {
             try {
                 SignedJWT signedJWT = (SignedJWT) JWTParser.parse(token.getTokenValue());
-                Map<String, Object> rawClaims = signedJWT.getJWTClaimsSet().getClaims();
+                Map<String, Object> claimsMap = signedJWT.getJWTClaimsSet().getClaims();
 
-                boolean hasIat = rawClaims.containsKey("iat");
-                boolean hasNbf = rawClaims.containsKey("nbf");
-
+                // Make sure that JWT has iat or nbf, both can't be left out
+                boolean hasIat = claimsMap.containsKey("iat");
+                boolean hasNbf = claimsMap.containsKey("nbf");
                 if (!hasIat && !hasNbf) {
                     return OAuth2TokenValidatorResult.failure(
-                            new OAuth2Error("invalid_token",
-                                    "Token must contain either iat or nbf claim", null)
+                            new OAuth2Error("token_missing_claim",
+                                    "token must contain either iat or nbf claim", null)
                     );
                 }
-            } catch (ParseException e) {
-                return OAuth2TokenValidatorResult.failure(
-                        new OAuth2Error("invalid_token", "Failed to parse claims from JWT", null)
-                );
-            }
-            return OAuth2TokenValidatorResult.success();
-        };
 
-        OAuth2TokenValidator<Jwt> futureIatCheck = token -> {
-            try {
-                SignedJWT signedJWT = (SignedJWT) JWTParser.parse(token.getTokenValue());
-                Map<String, Object> rawClaims = signedJWT.getJWTClaimsSet().getClaims();
-
-                boolean hasIat = rawClaims.containsKey("iat");
-
+                // Check to see if iat is in the future
                 if (hasIat) {
-                    // check to see if iat is in the future
                     Instant iat = token.getIssuedAt();
                     if ((iat != null) && iat.isAfter(Instant.now())) {
                         return OAuth2TokenValidatorResult.failure(
-                                new OAuth2Error("invalid_token", "iat cannot be in the future", null)
+                                new OAuth2Error("invalid_claim",
+                                        "iat cannot be in the future", null)
                         );
                     }
                 }
             } catch (ParseException e) {
                 return OAuth2TokenValidatorResult.failure(
-                        new OAuth2Error("invalid_token", "Failed to parse claims from JWT", null)
+                        new OAuth2Error("invalid_token",
+                                "failed to parse claims from JWT", null)
                 );
             }
             return OAuth2TokenValidatorResult.success();
         };
 
-
         return new DelegatingOAuth2TokenValidator<>(
                 timestampValidator,
                 expPresenceValidator,
-                timeConstraintValidator,
-                futureIatCheck
+                directClaimsVerification
         );
     }
 
