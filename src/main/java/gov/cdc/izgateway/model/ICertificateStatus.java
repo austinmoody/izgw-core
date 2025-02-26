@@ -4,7 +4,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
-import java.sql.Timestamp;
 import java.util.Date;
 import java.util.ServiceConfigurationError;
 
@@ -51,7 +50,6 @@ public interface ICertificateStatus {
      * 
      * @param cert	The certificate to compute the thumbprint.
      * @return A string representing the thumbprint using SHA-1
-     * @throws CertificateEncodingException if the binary encoding of the certificate cannot be produced.
      */
     static String computeThumbprint(X509Certificate cert) {
     	if (cert == null) {

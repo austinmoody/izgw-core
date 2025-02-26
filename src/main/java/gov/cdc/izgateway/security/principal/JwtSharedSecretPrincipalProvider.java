@@ -40,5 +40,4 @@ public class JwtSharedSecretPrincipalProvider extends AbstractJwtPrincipalProvid
         log.warn("No JWT shared secret was set. JWT authentication is disabled.");
         return false;
     }
-
 }

@@ -5,15 +5,10 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.List;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.UnaryOperator;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.apache.commons.lang3.StringUtils;
 
 import lombok.Getter;
@@ -106,10 +101,9 @@ public class HL7Utils {
 	/**
 	 * Strip an HL7 Segment of allowed fields
 	 * 
-	 * @param b             The string builder to copy the result to
 	 * @param segment       The segment to strip.
 	 * @param allowedFields The set of allowed fields.
-	 * @returns The stripped segment
+	 * @return The stripped segment
 	 */
 	public static String stripSegment(String segment, Collection<Integer> allowedFields) {
 		return stripParts(segment, allowedFields, "|", HL7Utils::stripCWE);
@@ -232,7 +226,7 @@ public class HL7Utils {
 		WITHIN_SEGMENT,
 		END_SEGMENT_NAME,
 		CHOMP_TO_DELIMITER
-	};
+	}
 	/**
 	 * Mash PHI in segments
 	 * This function ensures that HL7 message content potentially containing PHI is removed from the message.
