@@ -37,7 +37,6 @@ import gov.cdc.izgateway.logging.info.MessageInfo.Direction;
 import gov.cdc.izgateway.logging.info.MessageInfo.EndpointType;
 import gov.cdc.izgateway.model.IDestination;
 import gov.cdc.izgateway.model.IEndpointStatus;
-import gov.cdc.izgateway.model.RetryStrategy;
 import gov.cdc.izgateway.security.ClientTlsSupport;
 import gov.cdc.izgateway.security.Roles;
 import gov.cdc.izgateway.service.IStatusCheckerService;
@@ -118,13 +117,22 @@ public class MessageSender {
 			}
 
 			@Override
-			public void updateStatus(IEndpointStatus s,
-					boolean wasCircuitBreakerThrown, Throwable reason) {
+			public void updateStatus(IEndpointStatus s, IDestination dest, Fault reason) {
 				// Do nothing in testing version
 			}
 			@Override
 			public boolean isExempt(String destId) {
 				return false;
+			}
+
+			@Override
+			public void logCircuitBreakerReset(IEndpointStatus status) {
+				// Do nothing
+			}
+
+			@Override
+			public void logCircuitBreakerThrown(IEndpointStatus status, Throwable why) {
+				// Do nothing
 			}
 		};
 	}
@@ -146,7 +154,11 @@ public class MessageSender {
 	}
 	
 	/**
-	 * Send a submitSingleMessage request
+	 * Send a submitSingleMessage request.  This method sends a submitSingleMessage request to a destination endpoint,
+	 * retrying if both possible and reasonable to retry.  Certain failures such as a TLS error take longer to "fix",
+	 * are not transient in nature, and thus are not retried.  Updates the status of an endpoint on success or failure,
+	 * and on a failure of a non-transient sort or repeated transient failure, sets the circuit breaker.
+	 *   
 	 * @param dest	The destination to send it to
 	 * @param submitSingleMessage	The message to send
 	 * @return	The response
@@ -172,7 +184,7 @@ public class MessageSender {
 				SubmitSingleMessageResponse toBeReturned = new SubmitSingleMessageResponse(responseFromClient, submitSingleMessage.getSchema(), true);
 				toBeReturned.updateAction(true);  // Now a Hub Response
 				RequestContext.getTransactionData().setRetries(retryCount);
-				updateStatus(status, dest, true);
+				getStatusChecker().updateStatus(status, dest, null);
 				return toBeReturned;
 			} catch (Fault f) {
 				retryCount++;
@@ -184,9 +196,10 @@ public class MessageSender {
 
 	private void checkRetries(IDestination dest, IEndpointStatus status,
 			int retryCount, Fault f) throws Fault {
-		if (f.getRetry() != RetryStrategy.CHECK_IIS_STATUS || f.getCause() instanceof XMLStreamException) {
+		if (!f.isRetryable() || f.getCause() instanceof XMLStreamException) {
 			// This is not a retry-able failure.
 			RequestContext.getTransactionData().setRetries(retryCount);
+			getStatusChecker().updateStatus(status, dest, f);
 			throw f;
 		}
 		
@@ -195,7 +208,7 @@ public class MessageSender {
 			// Throw the circuit breaker for this endpoint
 			RequestContext.getTransactionData().setProcessError(f);
 			RequestContext.getTransactionData().setRetries(retryCount);
-			updateStatus(status, dest, false);
+			getStatusChecker().updateStatus(status, dest, f);
 			throw f;
 		}
 	}
@@ -214,25 +227,6 @@ public class MessageSender {
 		}
 	}
 
-	/**
-	 * Update status after successful or failed message send. This keeps status fresh and avoids
-	 * unnecessary status checks.
-	 * @param status	Current status
-	 * @param dest		Destination (needed on failure states to look for a reset of the circuit breaker)
-	 * @param success	true if the request worked, false if the circuit break should be thrown.
-	 */
-	private void updateStatus(IEndpointStatus status, IDestination dest, boolean success) {
-		if (success) {
-			status.connected();
-		} else {
-			status.setStatus(IEndpointStatus.CIRCUIT_BREAKER_THROWN);
-			if (statusChecker != null) {
-				statusChecker.lookForReset(dest);
-			}
-		}
-		statusService.save(status);
-	}
-	
 	/**
 	 * Check the status of a destination on an inbound request
 	 * @param dest	The destination to check.

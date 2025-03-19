@@ -56,5 +56,18 @@ public class Fault extends Exception implements FaultSupport {
 	public String getFaultName() {
 		return this.getClass().getSimpleName();
 	}
-
+	
+	/**
+	 * @return true if the fault is retryable.
+	 */
+	public boolean isRetryable() {
+		return messageSupport.getRetry().isRetryable();
+	}
+	
+	/**
+	 * @return true if repeated failures should cause circuit breaker to be thrown
+	 */
+	public boolean shouldBreakCircuit() {
+		return false;
+	}
 }
