@@ -19,6 +19,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * IpAddressFilter prevents access to a server except from approved IP Addresses.
+ * It is used to ensure that servers behind a load balancer are only being accessed by
+ * that load balancer.
+ * 
+ * @author Audacious Inquiry
+ *
+ */
 @Slf4j
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -26,6 +34,11 @@ public class IpAddressFilter implements Filter {
     private List<IPAddress> allowedSubnets = Collections.emptyList();
     private final boolean ipFilterEnabled;
 
+    /**
+     * Create a new IP Address Filter 
+     * @param allowedCidr	The CIDR block to allow
+     * @param ipFilterEnabled	Whether or not to enable the filter.
+     */
     public IpAddressFilter(
             @Value("${hub.security.ip-filter.allowed-cidr:}") String allowedCidr,
             @Value("${hub.security.ip-filter.enabled:false}") boolean ipFilterEnabled
