@@ -22,7 +22,7 @@ import java.util.Map;
 @Slf4j
 @Component
 public class CertificatePrincipalProviderImpl implements CertificatePrincipalProvider {
-    @Value("${client.ssl.certificate-header:}")
+    @Value("${client.ssl.certificate-header:x-amzn-mtls-clientcert-leaf}")
     private String certHeaderKey;
 
     private final CertificateValidator validator;
@@ -47,16 +47,24 @@ public class CertificatePrincipalProviderImpl implements CertificatePrincipalPro
      */
     private X509Certificate getCertificate(HttpServletRequest request) {
         X509Certificate cert = getCertificateFromAttribute(request);
-        if (cert != null) return cert;
+        if (cert != null) {
+        	log.debug("Certificate found in {}", Globals.CERTIFICATES_ATTR);
+        	return cert;
+        }
 
         String certHeader = request.getHeader(certHeaderKey);
-        if (StringUtils.isBlank(certHeader)) return null;
+        if (StringUtils.isBlank(certHeader)) {
+        	log.debug("No Certificate found in {}", certHeaderKey);
+        	log.debug("Headers recieved: {}", StringUtils.join(request.getHeaderNames().asIterator(), ", "));
+        	return null;
+        }
 
         try {
             cert = CertificateProcessor.processCertificateFromHeader(certHeader);
+        	log.debug("Certificate found in {}", certHeaderKey);
             return validator.isValid(cert) ? cert : null;
         } catch (CertificateException e) {
-            log.error("Failed to process certificate from header", e);
+            log.error("Failed to process certificate from header {}", certHeader, e);
             return null;
         }
     }
