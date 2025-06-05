@@ -3,13 +3,11 @@ package gov.cdc.izgateway.logging;
 import gov.cdc.izgateway.common.HealthService;
 import gov.cdc.izgateway.logging.event.EventCreator;
 import gov.cdc.izgateway.logging.event.TransactionData;
-import gov.cdc.izgateway.logging.event.EventCreator.Event;
 import gov.cdc.izgateway.logging.info.MessageInfo;
 import gov.cdc.izgateway.logging.info.SourceInfo;
 import gov.cdc.izgateway.logging.markers.Markers2;
 import gov.cdc.izgateway.security.service.PrincipalService;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
@@ -153,12 +151,13 @@ public class LoggingValve extends LoggingValveBase implements EventCreator {
         if (e == null) {
             log.debug("{} did not get event id for : {}", req.getRequestURI(), sess.getId());
         }
-        req.setAttribute(EVENT_ID, e.getId());
+        String eventId = e == null ? null : e.getId();
+        req.setAttribute(EVENT_ID, eventId);
         
         // Initialize Service type.
         boolean isGateway = StringUtils.contains(req.getRequestURI(), "/IISHubService") || StringUtils.contains(req.getRequestURI(), "/rest/");
 
-        TransactionData t = new TransactionData(e == null ? null : e.getId());
+        TransactionData t = new TransactionData(eventId);
         t.setServiceType(isGateway ? "Gateway" : "Mock");
         SourceInfo source = t.getSource();
         source.setType("Unknown");
