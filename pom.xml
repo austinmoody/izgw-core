@@ -35,6 +35,7 @@
     <project.build.finalName>${project.artifactId}-${project.version}-${timestamp}</project.build.finalName>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.java.package>${project.groupId}</project.java.package>
+    <mysql.version>9.3.0</mysql.version>
   </properties>
   <dependencies>
     <dependency>
