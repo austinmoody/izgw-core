@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonFormat.Shape;
 import gov.cdc.izgateway.common.Constants;
 import gov.cdc.izgateway.common.HasDestinationUri;
 import io.swagger.v3.oas.annotations.media.Schema;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbIgnore;
 
 public interface IDestination extends IEndpoint, HasDestinationUri {
 	@SuppressWarnings("serial")
@@ -107,12 +108,14 @@ public interface IDestination extends IEndpoint, HasDestinationUri {
 
 	IDestination safeCopy();
 
+	@DynamoDbIgnore
 	@JsonIgnore
 	@Schema(description = "True if this destination supports the original CDC 2011 Protocol", hidden=true)
 	default boolean is2011() {
 		return IZGW_2011.equals(getDestVersion());
 	}
 
+	@DynamoDbIgnore
 	@JsonIgnore
 	@Schema(description = "True if this destination supports the IZ Gateway 2014 Protocol", hidden=true)
 	default boolean is2014() {
@@ -120,12 +123,14 @@ public interface IDestination extends IEndpoint, HasDestinationUri {
 		return StringUtils.isEmpty(destVersion) || IZGW_2014.equals(destVersion);
 	}
 	
+	@DynamoDbIgnore
 	@JsonIgnore
 	@Schema(description = "True if this destination supports the IZ Gateway Hub Protocol", hidden=true)
 	default boolean isHub() {
 		return IZGW_HUB.equalsIgnoreCase(getDestVersion());
 	}
 	
+	@DynamoDbIgnore
 	@JsonIgnore
 	@Schema(description = "True if this destination supports the CDC DEX Protocol", hidden=true)
 	default boolean isDex() {
@@ -133,12 +138,52 @@ public interface IDestination extends IEndpoint, HasDestinationUri {
 		return IZGW_ADS_VERSION1.equals(destVersion) || IZGW_ADS_VERSION2.equals(destVersion);
 	}
 	
+	@DynamoDbIgnore
 	@JsonIgnore
 	@Schema(description = "True if this destination supports the Azure Blob Storage Protocol", hidden=true)
 	default boolean isAzure() {
 		return IZGW_AZURE_VERSION1.equals(getDestVersion());
 	}
 	
-	String getDestinationUri();
+	@JsonIgnore
+	@Schema(description = "The destination id", hidden=true)
+	@Override
+	default String getDestinationId() {
+		return getId().getDestId();
+	}
+
+	@JsonIgnore
+	@Schema(description = "The destination uri", hidden=true)
+	@Override
+	default String getDestinationUri() {
+		return getDestUri();
+	}	
+	
+	/**
+	 * Get an example destination with the specified id (used for swagger)
+	 * @param iDestination The destination to turn into an example
+	 * @param destId	The destId value to report in the example
+	 * @return	An example destination object
+	 */
+	public static IDestination getExample(IDestination iDestination, String destId) {
+		iDestination.getId().setDestId(destId);
+		iDestination.setDestUri("https://example.com/dev/IISService");
+		iDestination.setDestVersion("2011");
+		iDestination.setUsername("username");
+		iDestination.setPassword("password");
+		iDestination.setJurisdictionId(1);
+		iDestination.setMaintReason(null);
+		iDestination.setMaintStart(null);
+		iDestination.setMaintEnd(null);
+		iDestination.setFacilityId(null);
+		iDestination.setMsh3("IZGW");
+		iDestination.setMsh4("IZGW");
+		iDestination.setMsh5("IZGW");
+		iDestination.setMsh6("IZGW");
+		iDestination.setMsh22("IZGW");
+		iDestination.setRxa11("IZGW");
+		return iDestination;
+	}
+
 
 }
