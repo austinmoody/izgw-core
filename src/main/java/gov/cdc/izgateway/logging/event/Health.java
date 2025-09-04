@@ -17,6 +17,12 @@ import lombok.Getter;
 import java.lang.management.ManagementFactory;
 import java.util.Date;
 
+/**
+ * The Health class represents the health status of the server.
+ * 
+ * @author Audacious Inquiry
+ *
+ */
 @JsonPropertyOrder({ 
 	"isHealthy", "statusAt", "lastChangeReason",
 	"started", "startupTime",
@@ -98,13 +104,25 @@ public class Health {
 	@Schema(description="This Host's Egress IP Address", example="54.87.148.103") // NOSONAR This is an example address
 	private String egressDnsAddress;
 	
+	@JsonProperty
+	@Schema(description="This Host's Region", example="us-east-1")
+	private String region;
+	
+	
+    /**
+     * Construct a new Health object with default values.
+     */
     public Health() {
         started = new Date(ManagementFactory.getRuntimeMXBean().getStartTime());
         environment = SystemUtils.getDestTypeAsString();
         statusAt = new Date();
         hostname = SystemUtils.getHostname();
+        region = System.getenv("AWS_REGION");
     }
 
+    /**
+     * Make a copy of an existing Health object.
+     */
     private Health(Health that) {
         this.healthy = that.healthy;
         this.statusAt = new Date();
@@ -129,12 +147,21 @@ public class Health {
         
         this.ingressDnsAddress = that.ingressDnsAddress;
         this.egressDnsAddress = that.egressDnsAddress;
+        this.region = that.region;
     }
 
+    /**
+     * @return a copy of this Health object.
+     */
     public Health copy() {
         return new Health(this);
     }
     
+    /**
+	 * Set the health status of the server.
+	 * 
+	 * @param healthy true if the server is healthy, false otherwise
+	 */
     public void setHealthy(boolean healthy) {
     	this.healthy = healthy;
     	if (healthy) {
@@ -157,23 +184,30 @@ public class Health {
         return lastException == null ? null : lastException.getMessage();
     }
 
-    @JsonIgnore
-	public Throwable getLastExceptionInternal() {
-		return lastException;
-	}
-
+	/**
+	 * @return the atomic request Volume value
+	 */
 	public long getRequestVolume() {
 		return requestVolume.get();
 	}
 
+	/**
+	 * @return the atomic success Volume value
+	 */
 	public long getSuccessVolume() {
 		return successVolume.get();
 	}
 
+	/**
+	 * bump the atomic request volume counter
+	 */
 	public void incrementRequestVolume() {
 		requestVolume.incrementAndGet();
 	}
 
+	/**
+	 * bump the atomic success volume counter
+	 */
 	public void incrementSuccessVolume() {
 		successVolume.incrementAndGet();
 	}
