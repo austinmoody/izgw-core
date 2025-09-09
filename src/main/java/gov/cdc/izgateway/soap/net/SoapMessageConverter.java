@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
@@ -77,6 +78,7 @@ public class SoapMessageConverter implements HttpMessageConverter<SoapMessage> {
 		staxSource.setSupportedMediaTypes(mediaTypes);
 		this.type = type;
 	}
+
 	/**
 	 * See if the MediaType is json format.
 	 * @param mediaType	The media type to check
@@ -102,12 +104,12 @@ public class SoapMessageConverter implements HttpMessageConverter<SoapMessage> {
 		return staxSource.getSupportedMediaTypes();
 	}
 
-	@Override
-	public SoapMessage read(Class<? extends SoapMessage> clazz, HttpInputMessage message)
-			throws IOException, HttpMessageNotReadableException {
-		return read(message, null);
-	}
-	
+    @Override
+    public SoapMessage read(Class<? extends SoapMessage> clazz, HttpInputMessage message)
+            throws IOException, HttpMessageNotReadableException {
+        return read(message, null);
+    }
+
 	public SoapMessage read(HttpInputMessage message, EndPointInfo endpoint)
 			throws IOException, HttpMessageNotReadableException {
 		BufferedInputStream b = IOUtils.buffer(message.getBody());
@@ -131,7 +133,7 @@ public class SoapMessageConverter implements HttpMessageConverter<SoapMessage> {
 			throw new SoapConversionException(e.getMessage(), e, inputMessage);
 		}
 	}
-	
+
 	private XMLStreamReader getReader(StAXSource source) throws XMLStreamException {
 		return XML_INPUT_FACTORY.createFilteredReader(
 			source.getXMLStreamReader(),
@@ -159,7 +161,6 @@ public class SoapMessageConverter implements HttpMessageConverter<SoapMessage> {
 	private String getContentType(SoapMessage message,
 			MediaType contentType) {
 		StringBuilder ct = new StringBuilder("application/soap+xml");
-		message.updateAction(isHub());
 		String action = message.getWsaHeaders().getAction();
 		ct.append("; charset=UTF-8");
 		if (StringUtils.isNotEmpty(action)) {
