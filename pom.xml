@@ -49,6 +49,8 @@
 		<project.java.package>${project.groupId}</project.java.package>
 		<mysql.version>9.3.0</mysql.version>
 		<tomcat.version>10.1.44</tomcat.version>
+		<!-- Release management properties -->
+		<enforceNoSnapshots>false</enforceNoSnapshots>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
@@ -303,6 +305,26 @@
 				<executions>
 					<execution>
 						<id>enforce-java-version</id>
+					</execution>
+					<execution>
+						<id>enforce-no-snapshots</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<!-- Skip by default, enable with -DenforceNoSnapshots=true -->
+							<skip>true</skip>
+							<rules>
+								<requireReleaseDeps>
+									<message>No SNAPSHOT dependencies allowed for releases! Found SNAPSHOT dependencies.</message>
+									<failWhenParentIsSnapshot>false</failWhenParentIsSnapshot>
+									<excludes>
+										<!-- Allow our own BOM to be SNAPSHOT -->
+										<exclude>gov.cdc.izgw:izgw-bom</exclude>
+									</excludes>
+								</requireReleaseDeps>
+							</rules>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

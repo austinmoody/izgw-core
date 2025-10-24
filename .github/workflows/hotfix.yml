@@ -1,0 +1,290 @@
+name: Hotfix Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      base-version:
+        description: 'Base version to hotfix (e.g., 2.3.0)'
+        required: true
+        type: string
+      hotfix-version:
+        description: 'Hotfix version (e.g., 2.3.1)'
+        required: true
+        type: string
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ssh-key: ${{ secrets.ACTIONS_KEY }}
+        fetch-depth: 0  # Full history needed
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'adopt'
+        cache: maven
+
+    - name: Set up Maven
+      uses: stCarolas/setup-maven@v5
+      with:
+        maven-version: 3.9.0
+
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Set up Maven Settings
+      run: |
+        mkdir -p ~/.m2
+        cat << EOF > ~/.m2/settings.xml
+        <?xml version="1.0" encoding="UTF-8"?>
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+          https://maven.apache.org/xsd/settings-1.0.0.xsd">
+          <localRepository>~/.m2/repository</localRepository>
+          <servers>
+            <server>
+              <id>github</id>
+              <username>\${{ github.actor }}</username>
+              <password>\${{ secrets.GITHUB_TOKEN }}</password>
+            </server>
+          </servers>
+        </settings>
+        EOF
+
+    - name: Validate version formats
+      run: |
+        if [[ ! "${{ inputs.base-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Error: Base version must be in format X.Y.Z (e.g., 2.3.0)"
+          exit 1
+        fi
+        if [[ ! "${{ inputs.hotfix-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Error: Hotfix version must be in format X.Y.Z (e.g., 2.3.1)"
+          exit 1
+        fi
+
+        # Validate hotfix version is greater than base
+        BASE_MAJOR=$(echo "${{ inputs.base-version }}" | cut -d. -f1)
+        BASE_MINOR=$(echo "${{ inputs.base-version }}" | cut -d. -f2)
+        BASE_PATCH=$(echo "${{ inputs.base-version }}" | cut -d. -f3)
+
+        HOTFIX_MAJOR=$(echo "${{ inputs.hotfix-version }}" | cut -d. -f1)
+        HOTFIX_MINOR=$(echo "${{ inputs.hotfix-version }}" | cut -d. -f2)
+        HOTFIX_PATCH=$(echo "${{ inputs.hotfix-version }}" | cut -d. -f3)
+
+        if [ "$BASE_MAJOR" != "$HOTFIX_MAJOR" ] || [ "$BASE_MINOR" != "$HOTFIX_MINOR" ]; then
+          echo "Error: Hotfix must be in same major.minor version (base: ${{ inputs.base-version }}, hotfix: ${{ inputs.hotfix-version }})"
+          exit 1
+        fi
+
+        if [ "$HOTFIX_PATCH" -le "$BASE_PATCH" ]; then
+          echo "Error: Hotfix patch version must be greater than base (base: $BASE_PATCH, hotfix: $HOTFIX_PATCH)"
+          exit 1
+        fi
+
+        echo "✓ Version validation passed"
+
+    - name: Check if base tag exists
+      run: |
+        if ! git rev-parse "v${{ inputs.base-version }}" >/dev/null 2>&1; then
+          echo "Error: Base version tag v${{ inputs.base-version }} does not exist"
+          echo "Available tags:"
+          git tag -l "v*" | tail -10
+          exit 1
+        fi
+        echo "✓ Base tag v${{ inputs.base-version }} found"
+
+    - name: Create hotfix branch from base tag
+      run: |
+        BRANCH_NAME="hotfix/v${{ inputs.hotfix-version }}"
+        echo "Creating hotfix branch: $BRANCH_NAME"
+
+        # Create branch from the base version tag
+        git checkout -b "$BRANCH_NAME" "v${{ inputs.base-version }}"
+
+        echo "branch=$BRANCH_NAME" >> $GITHUB_ENV
+
+    - name: Apply hotfix (Manual step placeholder)
+      run: |
+        echo "## Hotfix Branch Created" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "A hotfix branch has been created from v${{ inputs.base-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. The workflow is paused here" >> $GITHUB_STEP_SUMMARY
+        echo "2. Apply your hotfix changes to the branch: \`${{ env.branch }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "3. Commit and push your changes" >> $GITHUB_STEP_SUMMARY
+        echo "4. Re-run this workflow to complete the hotfix release" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Commands:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "git checkout ${{ env.branch }}" >> $GITHUB_STEP_SUMMARY
+        echo "# Make your changes" >> $GITHUB_STEP_SUMMARY
+        echo "git add ." >> $GITHUB_STEP_SUMMARY
+        echo "git commit -m \"fix: description of hotfix\"" >> $GITHUB_STEP_SUMMARY
+        echo "git push origin ${{ env.branch }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+        # Check if this is a re-run (branch already has commits beyond base)
+        COMMITS_SINCE_BASE=$(git rev-list --count "v${{ inputs.base-version }}..HEAD")
+
+        if [ "$COMMITS_SINCE_BASE" -eq "0" ]; then
+          echo "No commits found since base version. Pushing branch for manual hotfix application..."
+          git push origin "${{ env.branch }}"
+          echo "status=awaiting_changes" >> $GITHUB_ENV
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Workflow paused** - Apply your hotfix and re-run" >> $GITHUB_STEP_SUMMARY
+          exit 0
+        else
+          echo "Found $COMMITS_SINCE_BASE commit(s) since base version. Proceeding with release..."
+          echo "status=ready_for_release" >> $GITHUB_ENV
+        fi
+
+    - name: Check for SNAPSHOT dependencies
+      if: env.status == 'ready_for_release'
+      run: |
+        echo "Checking for SNAPSHOT dependencies..."
+        SNAPSHOT_DEPS=$(mvn dependency:list -DexcludeGroupIds=gov.cdc.izgw | grep SNAPSHOT || true)
+
+        if [ -n "$SNAPSHOT_DEPS" ]; then
+          echo "ERROR: Found SNAPSHOT dependencies in the hotfix:"
+          echo "$SNAPSHOT_DEPS"
+          exit 1
+        fi
+        echo "✓ No SNAPSHOT dependencies found"
+
+    - name: Run tests
+      if: env.status == 'ready_for_release'
+      env:
+        COMMON_PASS: ${{ secrets.COMMON_PASS }}
+        ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
+      run: |
+        echo "Running test suite..."
+        mvn -B clean test
+
+    - name: Set hotfix version
+      if: env.status == 'ready_for_release'
+      run: |
+        echo "Setting version to ${{ inputs.hotfix-version }}"
+        mvn versions:set -DnewVersion=${{ inputs.hotfix-version }} -DgenerateBackupPoms=false
+        git add pom.xml
+        git commit -m "chore: hotfix version ${{ inputs.hotfix-version }}"
+
+    - name: Build and package
+      if: env.status == 'ready_for_release'
+      env:
+        COMMON_PASS: ${{ secrets.COMMON_PASS }}
+        ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
+      run: |
+        echo "Building hotfix artifacts..."
+        mvn -B clean package -DskipDependencyCheck=true
+
+    - name: Deploy to GitHub Packages
+      if: env.status == 'ready_for_release'
+      env:
+        COMMON_PASS: ${{ secrets.COMMON_PASS }}
+      run: |
+        echo "Deploying hotfix to GitHub Packages..."
+        mvn -B deploy -DskipTests -DskipDependencyCheck=true
+
+    - name: Create Git tag
+      if: env.status == 'ready_for_release'
+      run: |
+        git tag -a "v${{ inputs.hotfix-version }}" -m "Hotfix version ${{ inputs.hotfix-version }}"
+        git push origin "v${{ inputs.hotfix-version }}"
+
+    - name: Generate hotfix changelog
+      if: env.status == 'ready_for_release'
+      run: |
+        echo "Generating hotfix changelog..."
+        CHANGELOG=$(git log "v${{ inputs.base-version }}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+
+        cat << EOF > HOTFIX_NOTES.md
+        # Hotfix Release ${{ inputs.hotfix-version }}
+
+        This is a hotfix release based on v${{ inputs.base-version }}.
+
+        ## Changes
+
+        $CHANGELOG
+
+        ## Installation
+
+        Update your \`pom.xml\`:
+
+        \`\`\`xml
+        <dependency>
+          <groupId>gov.cdc.izgw</groupId>
+          <artifactId>izgw-core</artifactId>
+          <version>${{ inputs.hotfix-version }}</version>
+        </dependency>
+        \`\`\`
+        EOF
+
+    - name: Create GitHub Release
+      if: env.status == 'ready_for_release'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ inputs.hotfix-version }}
+        name: IZ Gateway Core v${{ inputs.hotfix-version }} (Hotfix)
+        body_path: HOTFIX_NOTES.md
+        draft: false
+        prerelease: false
+        files: |
+          target/*.jar
+          target/*.pom
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Merge hotfix back to main
+      if: env.status == 'ready_for_release'
+      run: |
+        echo "Attempting to merge hotfix back to main..."
+
+        # Fetch latest main
+        git fetch origin main
+
+        # Try to merge hotfix into main
+        git checkout main
+        git merge --no-ff "${{ env.branch }}" -m "Merge hotfix v${{ inputs.hotfix-version }} into main"
+
+        # Push to main
+        git push origin main
+
+        echo "✓ Hotfix merged back to main branch"
+
+    - name: Success Summary
+      if: env.status == 'ready_for_release'
+      run: |
+        echo "## ✅ Hotfix Release Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Hotfix version:** ${{ inputs.hotfix-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Base version:** ${{ inputs.base-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Completed Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Created hotfix from v${{ inputs.base-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Applied and tested changes" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Built and deployed to GitHub Packages" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Tagged as v${{ inputs.hotfix-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Created GitHub Release" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Merged back to main" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.hotfix-version }})" >> $GITHUB_STEP_SUMMARY
+        echo "2. **URGENT:** Notify consuming applications immediately" >> $GITHUB_STEP_SUMMARY
+        echo "3. Consider cherry-picking fixes to develop branch if needed" >> $GITHUB_STEP_SUMMARY
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "## ❌ Hotfix Failed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "The hotfix process failed. Please check the logs above." >> $GITHUB_STEP_SUMMARY
