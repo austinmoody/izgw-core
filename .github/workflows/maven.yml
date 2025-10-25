@@ -20,28 +20,28 @@ concurrency: izgw-core-dev
 jobs:
   build:
 
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
 
     steps:
-    
-    - name: Checkout the software  
+
+    - name: Checkout the software
       uses: actions/checkout@v4
       # Necessary to enable push to protected branch
       with:
         ssh-key: ${{secrets.ACTIONS_KEY}}
-        
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'adopt'
         cache: maven
-        
+
     - name: Set up Maven
       uses: stCarolas/setup-maven@v5
       with:
         maven-version: 3.9.0
-        
+
     - name: Set up Toolchain
       shell: bash
       run: |
@@ -87,7 +87,7 @@ jobs:
             <servers>
               <server>
                 <id>github</id>
-                <username>${{ env.GITHUB_ACTOR }}</username>
+                <username>${{ github.actor }}</username>
                 <password>${{ secrets.GITHUB_TOKEN }}</password>
               </server>
             </servers>
@@ -97,7 +97,7 @@ jobs:
             <activeProfiles />
           </settings>
           EOF
-          
+
     - name: Sets env vars for push or pull request to release branch (default behavior)
       run: |
         echo IMAGE_TAG=`mvn help:evaluate -Dexpression=project.version -q -DforceStdout | sed "s/-SNAPSHOT$/-SNAPSHOT-${{github.run_number}}/"` >> $GITHUB_ENV
@@ -107,8 +107,8 @@ jobs:
         # Skip dependency check
         echo SKIP_DEPENDENCY_CHECK=true >> $GITHUB_ENV
 
-    # If pulling to main branch (cutting a release), set branch tag appropriately  
-    - name: Sets env vars for pull to main 
+    # If pulling to main branch (cutting a release), set branch tag appropriately
+    - name: Sets env vars for pull to main
       if: ${{ github.base_ref == 'main' }}
       run: |
         IMAGE_TAG=`mvn help:evaluate -Dexpression=project.version -q -DforceStdout | sed "s/-.*$/-IZGW-SNAPSHOT-${{github.run_number}}/"` 
@@ -122,8 +122,8 @@ jobs:
         # Skip dependency check
         echo SKIP_DEPENDENCY_CHECK=true >> $GITHUB_ENV
 
-    # If pushing to main branch (cutting a release), set branch tag appropriately  
-    - name: Sets env vars for pull to main 
+    # If pushing to main branch (cutting a release), set branch tag appropriately
+    - name: Sets env vars for pull to main
       if: ${{ github.ref_name == 'main' }}
       run: |
         IMAGE_TAG=`mvn help:evaluate -Dexpression=project.version -q -DforceStdout | sed "s/-.*$/-IZGW-RELEASE-${{github.run_number}}/"` 
@@ -164,7 +164,7 @@ jobs:
         echo IMAGE_BRANCH_TAG: $IMAGE_BRANCH_TAG 
         cd ~/.m2
         ls -l
-          
+
     - name: Check that push to main is from release branch
       # Don't filter on testmain to test push to main route
       if: ${{ ! startsWith(github.base_ref, 'Release_v') && github.head_ref == 'main' }}
@@ -183,7 +183,7 @@ jobs:
             -DdoRevisionCheck=${{env.DO_REVISION_CHECK}} \
             -DskipDependencyCheck=${{env.SKIP_DEPENDENCY_CHECK}} \
             -Dimage.tag=$IMAGE_BRANCH_TAG 
-            
+
     - name: Upload build environment as artifact for failed build
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
