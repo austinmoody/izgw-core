@@ -48,8 +48,8 @@ jobs:
           <servers>
             <server>
               <id>github</id>
-              <username>\${{ github.actor }}</username>
-              <password>\${{ secrets.GITHUB_TOKEN }}</password>
+              <username>\${{ secrets.GH_USERNAME }}</username>
+              <password>\${{ secrets.GH_PASSWORD }}</password>
             </server>
           </servers>
         </settings>
