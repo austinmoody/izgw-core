@@ -35,16 +35,6 @@ jobs:
         distribution: 'adopt'
         cache: maven
 
-    - name: Set up Maven
-      uses: stCarolas/setup-maven@v5
-      with:
-        maven-version: 3.9.0
-
-    - name: Configure Git
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
     - name: Set up Maven Settings
       run: |
         mkdir -p ~/.m2
@@ -64,6 +54,16 @@ jobs:
           </servers>
         </settings>
         EOF
+
+    - name: Set up Maven
+      uses: stCarolas/setup-maven@v5
+      with:
+        maven-version: 3.9.0
+
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
 
     - name: Validate release version format
       run: |
