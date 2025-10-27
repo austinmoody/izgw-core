@@ -184,7 +184,7 @@ jobs:
         <repositories>
           <repository>
             <id>github</id>
-            <url>https://maven.pkg.github.com/IZGateway/izgw-core</url>
+            <url>https://maven.pkg.github.com/austinmoody/izgw-core</url>
           </repository>
         </repositories>
         \`\`\`

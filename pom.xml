@@ -30,7 +30,7 @@
 		<repository>
 			<id>github</id>
 			<name>GitHub Packages</name>
-			<url>https://maven.pkg.github.com/IZGateway/izgw-bom</url>
+			<url>https://maven.pkg.github.com/austinmoody/izgw-bom</url>
 			<releases>
 				<enabled>true</enabled>
 			</releases>
@@ -125,7 +125,7 @@
 		<dependency>
 			<groupId>net.logstash.logback</groupId>
 			<artifactId>logstash-logback-encoder</artifactId>
-			<version>[7.4,)</version>
+			<version>7.4</version>
 		</dependency>
 		<!-- Uncomment the following to get a startup report at [host]/startup-report -->
 		<!-- dependency> <groupId>com.maciejwalkowiak.spring</groupId> <artifactId>spring-boot-startup-report</artifactId> 
