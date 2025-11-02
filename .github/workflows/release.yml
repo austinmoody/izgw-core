@@ -73,8 +73,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Checking for SNAPSHOT dependencies..."
-        # Get all SNAPSHOT dependencies except izgw-bom (parent)
-        SNAPSHOT_DEPS=$(mvn dependency:list -DexcludeGroupIds=gov.cdc.izgw | grep SNAPSHOT || true)
+        # Get all SNAPSHOT dependencies except izgw-bom (parent) and the project itself
+        # Use dependency:tree with specific scope to avoid including the project itself
+        SNAPSHOT_DEPS=$(mvn dependency:tree -Dincludes=*:*:*:*:*-SNAPSHOT -DexcludeGroupIds=gov.cdc.izgw -DoutputType=text | grep SNAPSHOT | grep -v "izgw-core" || true)
 
         if [ -n "$SNAPSHOT_DEPS" ]; then
           echo "ERROR: Found SNAPSHOT dependencies in the project:"
@@ -83,7 +84,7 @@ jobs:
           echo "Please update all dependencies to release versions before creating a release."
           exit 1
         else
-          echo "✓ No SNAPSHOT dependencies found (parent BOM excluded)"
+          echo "✓ No SNAPSHOT dependencies found (parent BOM and project itself excluded)"
         fi
 
     - name: Run tests
