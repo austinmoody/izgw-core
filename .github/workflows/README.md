@@ -75,8 +75,8 @@ Click: Run workflow
 **Purpose**: Emergency patch releases for production issues
 
 **Required Inputs**:
-- `base-version`: Version to hotfix (e.g., `2.3.0`)
-- `hotfix-version`: New patch version (e.g., `2.3.1`)
+- `base-version`: Version to hotfix (e.g., `2.3.0-izgw-core`)
+- `hotfix-version`: New patch version (e.g., `2.3.1-izgw-core`)
 
 **Process**:
 
@@ -99,27 +99,26 @@ Click: Run workflow
 ```
 # First run - create hotfix branch
 Go to Actions → Hotfix Release → Run workflow
-Enter: base-version: 2.3.0
-Enter: hotfix-version: 2.3.1
+Enter: base-version: 2.3.0-izgw-core
+Enter: hotfix-version: 2.3.1-izgw-core
 Click: Run workflow
 
 # Apply your fix
-git checkout hotfix/v2.3.1
+git checkout hotfix/v2.3.1-izgw-core
 # Make changes
 git add .
 git commit -m "fix: critical issue"
-git push origin hotfix/v2.3.1
+git push origin hotfix/v2.3.1-izgw-core
 
 # Second run - complete release
 Go to Actions → Hotfix Release → Run workflow (same inputs)
 ```
 
-**Note**: Hotfix versions use `X.Y.Z` format (without `-izgw-core` suffix)
-
 **Validation**:
 - Hotfix must be same major.minor as base (2.3.x only)
 - Hotfix patch must be greater than base patch
 - Base tag must exist
+- Both versions must include `-izgw-core` suffix
 
 **See**: [RELEASING.md](../../RELEASING.md#hotfix-process) for detailed instructions
 
@@ -206,7 +205,7 @@ Error: Tag v2.3.0-izgw-core already exists
 ```
 Error: Version must be in format X.Y.Z-izgw-core
 ```
-**Solution**: Ensure version follows the required format (e.g., 2.3.0-izgw-core for releases, 2.3.0 for hotfixes)
+**Solution**: Ensure version follows the required format (e.g., 2.3.0-izgw-core for releases, 2.3.1-izgw-core for hotfixes)
 
 ---
 

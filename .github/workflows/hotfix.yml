@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       base-version:
-        description: 'Base version to hotfix (e.g., 2.3.0)'
+        description: 'Base version to hotfix (e.g., 2.3.0-izgw-core)'
         required: true
         type: string
       hotfix-version:
-        description: 'Hotfix version (e.g., 2.3.1)'
+        description: 'Hotfix version (e.g., 2.3.1-izgw-core)'
         required: true
         type: string
 
@@ -62,23 +62,27 @@ jobs:
 
     - name: Validate version formats
       run: |
-        if [[ ! "${{ inputs.base-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "Error: Base version must be in format X.Y.Z (e.g., 2.3.0)"
+        if [[ ! "${{ inputs.base-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core$ ]]; then
+          echo "Error: Base version must be in format X.Y.Z-izgw-core (e.g., 2.3.0-izgw-core)"
           exit 1
         fi
-        if [[ ! "${{ inputs.hotfix-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "Error: Hotfix version must be in format X.Y.Z (e.g., 2.3.1)"
+        if [[ ! "${{ inputs.hotfix-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core$ ]]; then
+          echo "Error: Hotfix version must be in format X.Y.Z-izgw-core (e.g., 2.3.1-izgw-core)"
           exit 1
         fi
+
+        # Extract version numbers (remove -izgw-core suffix for comparison)
+        BASE_VERSION=$(echo "${{ inputs.base-version }}" | sed 's/-izgw-core$//')
+        HOTFIX_VERSION=$(echo "${{ inputs.hotfix-version }}" | sed 's/-izgw-core$//')
 
         # Validate hotfix version is greater than base
-        BASE_MAJOR=$(echo "${{ inputs.base-version }}" | cut -d. -f1)
-        BASE_MINOR=$(echo "${{ inputs.base-version }}" | cut -d. -f2)
-        BASE_PATCH=$(echo "${{ inputs.base-version }}" | cut -d. -f3)
+        BASE_MAJOR=$(echo "$BASE_VERSION" | cut -d. -f1)
+        BASE_MINOR=$(echo "$BASE_VERSION" | cut -d. -f2)
+        BASE_PATCH=$(echo "$BASE_VERSION" | cut -d. -f3)
 
-        HOTFIX_MAJOR=$(echo "${{ inputs.hotfix-version }}" | cut -d. -f1)
-        HOTFIX_MINOR=$(echo "${{ inputs.hotfix-version }}" | cut -d. -f2)
-        HOTFIX_PATCH=$(echo "${{ inputs.hotfix-version }}" | cut -d. -f3)
+        HOTFIX_MAJOR=$(echo "$HOTFIX_VERSION" | cut -d. -f1)
+        HOTFIX_MINOR=$(echo "$HOTFIX_VERSION" | cut -d. -f2)
+        HOTFIX_PATCH=$(echo "$HOTFIX_VERSION" | cut -d. -f3)
 
         if [ "$BASE_MAJOR" != "$HOTFIX_MAJOR" ] || [ "$BASE_MINOR" != "$HOTFIX_MINOR" ]; then
           echo "Error: Hotfix must be in same major.minor version (base: ${{ inputs.base-version }}, hotfix: ${{ inputs.hotfix-version }})"

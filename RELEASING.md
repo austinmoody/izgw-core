@@ -97,15 +97,15 @@ Hotfixes are used for emergency patches to production releases.
 
 #### Step 1: Identify Base Version
 
-Determine which release needs the hotfix (e.g., `2.3.0`)
+Determine which release needs the hotfix (e.g., `2.3.0-izgw-core`)
 
 #### Step 2: Trigger Hotfix Workflow
 
 1. Go to **Actions** → **Hotfix Release** in GitHub
 2. Click **Run workflow**
 3. Fill in the parameters:
-   - **Base version**: The version to hotfix (e.g., `2.3.0`)
-   - **Hotfix version**: The new patch version (e.g., `2.3.1`)
+   - **Base version**: The version to hotfix (e.g., `2.3.0-izgw-core`)
+   - **Hotfix version**: The new patch version (e.g., `2.3.1-izgw-core`)
 
 4. Click **Run workflow**
 
@@ -121,7 +121,7 @@ The workflow will automatically detect if the hotfix branch already has commits:
 1. Checkout the hotfix branch:
    ```bash
    git fetch origin
-   git checkout hotfix/v2.3.1
+   git checkout hotfix/v2.3.1-izgw-core
    ```
 
 2. Apply your fix:
@@ -129,7 +129,7 @@ The workflow will automatically detect if the hotfix branch already has commits:
    # Make your changes
    git add .
    git commit -m "fix: critical issue description"
-   git push origin hotfix/v2.3.1
+   git push origin hotfix/v2.3.1-izgw-core
    ```
 
 #### Step 4: Complete the Hotfix
@@ -300,13 +300,13 @@ Bump to the next patch version (e.g., 2.3.1-izgw-core instead of 2.3.0-izgw-core
 **Issue**: Hotfix branch conflicts with main
 ```bash
 # Resolve conflicts manually
-git checkout hotfix/v2.3.1
+git checkout hotfix/v2.3.1-izgw-core
 git fetch origin main
 git merge origin/main
 # Resolve conflicts
 git add .
 git commit -m "merge: resolve conflicts with main"
-git push origin hotfix/v2.3.1
+git push origin hotfix/v2.3.1-izgw-core
 ```
 
 ## Best Practices
