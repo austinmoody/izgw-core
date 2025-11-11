@@ -174,6 +174,50 @@ jobs:
         echo "Running test suite..."
         mvn -B clean test
 
+    - name: Update CHANGELOG.md
+      if: env.status == 'ready_for_release'
+      run: |
+        echo "Updating CHANGELOG.md for hotfix..."
+
+        # Get current date
+        RELEASE_DATE=$(date +%Y-%m-%d)
+
+        # Generate changelog from base version to current
+        CHANGELOG=$(git log "v${{ inputs.base-version }}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+
+        # Create new changelog entry
+        cat > CHANGELOG_ENTRY.md << EOF
+        ## [${{ inputs.hotfix-version }}] - $RELEASE_DATE (Hotfix)
+
+        ### Fixed
+        $CHANGELOG
+
+        EOF
+
+        # Check if CHANGELOG.md exists
+        if [ -f "CHANGELOG.md" ]; then
+          # Prepend new entry to existing CHANGELOG.md
+          cat CHANGELOG.md >> CHANGELOG_ENTRY.md
+          mv CHANGELOG_ENTRY.md CHANGELOG.md
+        else
+          # Create new CHANGELOG.md (unlikely for hotfix, but handle it)
+          cat > CHANGELOG.md << EOF
+        # Changelog
+
+        All notable changes to this project will be documented in this file.
+
+        The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+        and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+        EOF
+          cat CHANGELOG_ENTRY.md >> CHANGELOG.md
+          rm CHANGELOG_ENTRY.md
+        fi
+
+        git add CHANGELOG.md
+        git commit -m "docs: update CHANGELOG.md for hotfix ${{ inputs.hotfix-version }}"
+        echo "✓ CHANGELOG.md updated"
+
     - name: Set hotfix version
       if: env.status == 'ready_for_release'
       run: |
@@ -181,6 +225,8 @@ jobs:
         mvn versions:set -DnewVersion=${{ inputs.hotfix-version }} -DgenerateBackupPoms=false
         git add pom.xml
         git commit -m "chore: hotfix version ${{ inputs.hotfix-version }}"
+        git push origin "${{ env.branch }}"
+        echo "✓ Hotfix version set and committed"
 
     - name: Build and package
       if: env.status == 'ready_for_release'
@@ -198,12 +244,6 @@ jobs:
       run: |
         echo "Deploying hotfix to GitHub Packages..."
         mvn -B deploy -DskipTests -DskipDependencyCheck=true
-
-    - name: Create Git tag
-      if: env.status == 'ready_for_release'
-      run: |
-        git tag -a "v${{ inputs.hotfix-version }}" -m "Hotfix version ${{ inputs.hotfix-version }}"
-        git push origin "v${{ inputs.hotfix-version }}"
 
     - name: Generate hotfix changelog
       if: env.status == 'ready_for_release'
@@ -248,22 +288,31 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Merge hotfix back to main
+    - name: Merge hotfix to main and tag
       if: env.status == 'ready_for_release'
       run: |
-        echo "Attempting to merge hotfix back to main..."
+        echo "Merging hotfix to main..."
 
-        # Fetch latest main
-        git fetch origin main
+        # Check if main branch exists
+        if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
+          echo "Main branch exists, fetching..."
+          git fetch origin main
+          git checkout main
+          git merge --no-ff "${{ env.branch }}" -m "Merge hotfix ${{ env.branch }} to main"
+        else
+          echo "Main branch does not exist, creating from hotfix branch..."
+          git checkout -b main
+        fi
 
-        # Try to merge hotfix into main
-        git checkout main
-        git merge --no-ff "${{ env.branch }}" -m "Merge hotfix v${{ inputs.hotfix-version }} into main"
-
-        # Push to main
+        # Push main
         git push origin main
+        echo "✓ Hotfix merged to main"
 
-        echo "✓ Hotfix merged back to main branch"
+        # Create tag on main
+        echo "Creating tag v${{ inputs.hotfix-version }} on main branch..."
+        git tag -a "v${{ inputs.hotfix-version }}" -m "Hotfix version ${{ inputs.hotfix-version }}"
+        git push origin "v${{ inputs.hotfix-version }}"
+        echo "✓ Tag created on main"
 
     - name: Success Summary
       if: env.status == 'ready_for_release'
@@ -272,19 +321,27 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Hotfix version:** ${{ inputs.hotfix-version }}" >> $GITHUB_STEP_SUMMARY
         echo "**Base version:** ${{ inputs.base-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Hotfix branch:** ${{ env.branch }} (kept)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Completed Steps:" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Created hotfix from v${{ inputs.base-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Created hotfix branch from v${{ inputs.base-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Updated CHANGELOG.md" >> $GITHUB_STEP_SUMMARY
         echo "✅ Applied and tested changes" >> $GITHUB_STEP_SUMMARY
         echo "✅ Built and deployed to GitHub Packages" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Tagged as v${{ inputs.hotfix-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Merged to main" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Tagged v${{ inputs.hotfix-version }} on main" >> $GITHUB_STEP_SUMMARY
         echo "✅ Created GitHub Release" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Merged back to main" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
-        echo "1. Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.hotfix-version }})" >> $GITHUB_STEP_SUMMARY
-        echo "2. **URGENT:** Notify consuming applications immediately" >> $GITHUB_STEP_SUMMARY
-        echo "3. Consider cherry-picking fixes to develop branch if needed" >> $GITHUB_STEP_SUMMARY
+        echo "1. 📦 Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.hotfix-version }})" >> $GITHUB_STEP_SUMMARY
+        echo "2. 🚨 **URGENT:** Notify consuming applications (izg-hub, izg-xform) immediately" >> $GITHUB_STEP_SUMMARY
+        echo "3. 🔀 **Important:** Cherry-pick fixes to develop branch:" >> $GITHUB_STEP_SUMMARY
+        echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "   git checkout develop" >> $GITHUB_STEP_SUMMARY
+        echo "   git cherry-pick <commit-hash>" >> $GITHUB_STEP_SUMMARY
+        echo "   git push origin develop" >> $GITHUB_STEP_SUMMARY
+        echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "4. 📝 Consider if fixes should be cherry-picked to any active release branches" >> $GITHUB_STEP_SUMMARY
 
     - name: Notify on failure
       if: failure()
