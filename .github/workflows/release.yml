@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       release-version:
-        description: 'Release version (e.g., 2.3.0)'
+        description: 'Release version (e.g., 2.3.0-izgw-core)'
         required: true
         type: string
       next-snapshot-version:
-        description: 'Next SNAPSHOT version (e.g., 2.4.0-SNAPSHOT)'
+        description: 'Next SNAPSHOT version (e.g., 2.4.0-izgw-core-SNAPSHOT)'
         required: true
         type: string
       skip-tests:
@@ -50,12 +50,12 @@ jobs:
 
     - name: Validate release version format
       run: |
-        if [[ ! "${{ inputs.release-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "Error: Release version must be in format X.Y.Z (e.g., 2.3.0)"
+        if [[ ! "${{ inputs.release-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core$ ]]; then
+          echo "Error: Release version must be in format X.Y.Z-izgw-core (e.g., 2.3.0-izgw-core)"
           exit 1
         fi
-        if [[ ! "${{ inputs.next-snapshot-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$ ]]; then
-          echo "Error: Next SNAPSHOT version must be in format X.Y.Z-SNAPSHOT (e.g., 2.4.0-SNAPSHOT)"
+        if [[ ! "${{ inputs.next-snapshot-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core\-SNAPSHOT$ ]]; then
+          echo "Error: Next SNAPSHOT version must be in format X.Y.Z-izgw-core-SNAPSHOT (e.g., 2.4.0-izgw-core-SNAPSHOT)"
           exit 1
         fi
 
