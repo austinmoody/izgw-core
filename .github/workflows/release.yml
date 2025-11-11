@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       release-version:
-        description: 'Release version (e.g., 2.3.0)'
+        description: 'Release version (e.g., 2.3.0-izgw-core)'
         required: true
         type: string
       next-snapshot-version:
-        description: 'Next SNAPSHOT version (e.g., 2.4.0-SNAPSHOT)'
+        description: 'Next SNAPSHOT version (e.g., 2.4.0-izgw-core-SNAPSHOT)'
         required: true
         type: string
       skip-tests:
