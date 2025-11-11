@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       release-version:
-        description: 'Release version (e.g., 2.3.0-izgw-core)'
+        description: 'Release version (e.g., 2.4.0-izgw-core)'
         required: true
         type: string
       next-snapshot-version:
-        description: 'Next SNAPSHOT version (e.g., 2.4.0-izgw-core-SNAPSHOT)'
+        description: 'Next SNAPSHOT version (e.g., 2.5.0-izgw-core-SNAPSHOT)'
         required: true
         type: string
       skip-tests:
@@ -16,6 +16,11 @@ on:
         required: false
         type: boolean
         default: false
+      delete-release-branch-on-failure:
+        description: 'Delete release branch if workflow fails'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   release:
@@ -48,25 +53,59 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Validate release version format
+    - name: Validate prerequisites
+      id: validate
       run: |
+        echo "Validating release prerequisites..."
+
+        # Validate version formats
         if [[ ! "${{ inputs.release-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core$ ]]; then
-          echo "Error: Release version must be in format X.Y.Z-izgw-core (e.g., 2.3.0-izgw-core)"
+          echo "❌ Error: Release version must be in format X.Y.Z-izgw-core (e.g., 2.4.0-izgw-core)"
           exit 1
         fi
         if [[ ! "${{ inputs.next-snapshot-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core\-SNAPSHOT$ ]]; then
-          echo "Error: Next SNAPSHOT version must be in format X.Y.Z-izgw-core-SNAPSHOT (e.g., 2.4.0-izgw-core-SNAPSHOT)"
+          echo "❌ Error: Next SNAPSHOT version must be in format X.Y.Z-izgw-core-SNAPSHOT (e.g., 2.5.0-izgw-core-SNAPSHOT)"
           exit 1
         fi
+        echo "✓ Version format validation passed"
 
-    - name: Get current version
-      id: current-version
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        CURRENT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-        echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-        echo "Current version: $CURRENT_VERSION"
+        # Validate current branch is develop
+        CURRENT_BRANCH="${{ github.ref_name }}"
+        if [[ "$CURRENT_BRANCH" != "develop" ]]; then
+          echo "❌ Error: Release workflow must be run from 'develop' branch"
+          echo "Current branch: $CURRENT_BRANCH"
+          echo ""
+          echo "Please switch to develop branch and try again:"
+          echo "  git checkout develop"
+          echo "  git pull origin develop"
+          exit 1
+        fi
+        echo "✓ Running from develop branch"
+
+        # Set release branch name
+        RELEASE_BRANCH="release/${{ inputs.release-version }}"
+        echo "release_branch=$RELEASE_BRANCH" >> $GITHUB_OUTPUT
+        echo "Release branch will be: $RELEASE_BRANCH"
+
+        # Check if release branch already exists
+        if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
+          echo "❌ Error: Release branch '$RELEASE_BRANCH' already exists"
+          echo ""
+          echo "This likely means a previous release attempt failed or is in progress."
+          echo "Please either:"
+          echo "  1. Delete the branch: git push origin --delete $RELEASE_BRANCH"
+          echo "  2. Or use a different version number"
+          exit 1
+        fi
+        echo "✓ Release branch does not exist yet"
+
+        # Check if tag already exists
+        if git ls-remote --exit-code --tags origin "v${{ inputs.release-version }}" >/dev/null 2>&1; then
+          echo "❌ Error: Tag 'v${{ inputs.release-version }}' already exists"
+          echo "This version has already been released. Please use a different version number."
+          exit 1
+        fi
+        echo "✓ Release tag does not exist yet"
 
     - name: Check for SNAPSHOT dependencies
       env:
@@ -74,11 +113,10 @@ jobs:
       run: |
         echo "Checking for SNAPSHOT dependencies..."
         # Get all SNAPSHOT dependencies except izgw-bom (parent) and the project itself
-        # Use dependency:tree with specific scope to avoid including the project itself
         SNAPSHOT_DEPS=$(mvn dependency:tree -Dincludes=*:*:*:*:*-SNAPSHOT -DexcludeGroupIds=gov.cdc.izgw -DoutputType=text | grep SNAPSHOT | grep -v "izgw-core" || true)
 
         if [ -n "$SNAPSHOT_DEPS" ]; then
-          echo "ERROR: Found SNAPSHOT dependencies in the project:"
+          echo "❌ ERROR: Found SNAPSHOT dependencies in the project:"
           echo "$SNAPSHOT_DEPS"
           echo ""
           echo "Please update all dependencies to release versions before creating a release."
@@ -86,6 +124,75 @@ jobs:
         else
           echo "✓ No SNAPSHOT dependencies found (parent BOM and project itself excluded)"
         fi
+
+    - name: Create release branch
+      run: |
+        echo "Creating release branch: ${{ steps.validate.outputs.release_branch }}"
+        git checkout -b "${{ steps.validate.outputs.release_branch }}"
+        git push origin "${{ steps.validate.outputs.release_branch }}"
+        echo "✓ Release branch created and pushed"
+
+    - name: Update CHANGELOG.md
+      run: |
+        echo "Generating changelog entries..."
+
+        # Get the previous tag
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD 2>/dev/null || echo "")
+
+        if [ -z "$PREVIOUS_TAG" ]; then
+          echo "First release, showing all commits"
+          COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+        else
+          echo "Generating changelog from $PREVIOUS_TAG to HEAD"
+          COMMITS=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+        fi
+
+        # Get current date
+        RELEASE_DATE=$(date +%Y-%m-%d)
+
+        # Create new changelog entry
+        cat > CHANGELOG_ENTRY.md << EOF
+        ## [${{ inputs.release-version }}] - $RELEASE_DATE
+
+        ### Changes
+        $COMMITS
+
+        EOF
+
+        # Check if CHANGELOG.md exists
+        if [ -f "CHANGELOG.md" ]; then
+          # Prepend new entry to existing CHANGELOG.md
+          cat CHANGELOG.md >> CHANGELOG_ENTRY.md
+          mv CHANGELOG_ENTRY.md CHANGELOG.md
+        else
+          # Create new CHANGELOG.md
+          cat > CHANGELOG.md << EOF
+        # Changelog
+
+        All notable changes to this project will be documented in this file.
+
+        The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+        and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+        EOF
+          cat CHANGELOG_ENTRY.md >> CHANGELOG.md
+          rm CHANGELOG_ENTRY.md
+        fi
+
+        git add CHANGELOG.md
+        git commit -m "docs: update CHANGELOG.md for release ${{ inputs.release-version }}"
+        echo "✓ CHANGELOG.md updated"
+
+    - name: Set release version
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Setting version to ${{ inputs.release-version }}"
+        mvn versions:set -DnewVersion=${{ inputs.release-version }} -DgenerateBackupPoms=false
+        git add pom.xml
+        git commit -m "chore: prepare release ${{ inputs.release-version }}"
+        git push origin "${{ steps.validate.outputs.release_branch }}"
+        echo "✓ Release version set and committed"
 
     - name: Run tests
       if: ${{ !inputs.skip-tests }}
@@ -114,15 +221,6 @@ jobs:
         path: ./target/dependency-check-report.*
         if-no-files-found: ignore
 
-    - name: Set release version
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        echo "Setting version to ${{ inputs.release-version }}"
-        mvn versions:set -DnewVersion=${{ inputs.release-version }} -DgenerateBackupPoms=false
-        git add pom.xml
-        git commit -m "chore: release version ${{ inputs.release-version }}"
-
     - name: Build and package
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -140,23 +238,43 @@ jobs:
         echo "Deploying to GitHub Packages..."
         mvn -B deploy -DskipTests -DskipDependencyCheck=true
 
-    - name: Create Git tag
+    - name: Merge release branch to main
       run: |
+        echo "Merging release branch to main..."
+
+        # Check if main branch exists
+        if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
+          echo "Main branch exists, fetching..."
+          git fetch origin main
+          git checkout main
+          git merge --no-ff "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }}"
+        else
+          echo "Main branch does not exist (first release), creating from release branch..."
+          git checkout -b main
+        fi
+
+        git push origin main
+        echo "✓ Release branch merged to main"
+
+    - name: Create Git tag on main
+      run: |
+        echo "Creating tag v${{ inputs.release-version }} on main branch..."
         git tag -a "v${{ inputs.release-version }}" -m "Release version ${{ inputs.release-version }}"
         git push origin "v${{ inputs.release-version }}"
+        echo "✓ Tag created on main"
 
-    - name: Generate changelog
-      id: changelog
+    - name: Generate GitHub Release notes
+      id: release-notes
       run: |
-        echo "Generating changelog from commits..."
-        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        echo "Generating release notes..."
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 "v${{ inputs.release-version }}"^ 2>/dev/null || echo "")
 
         if [ -z "$PREVIOUS_TAG" ]; then
           echo "First release, showing all commits"
-          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges "v${{ inputs.release-version }}")
         else
           echo "Generating changelog from $PREVIOUS_TAG to v${{ inputs.release-version }}"
-          CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          CHANGELOG=$(git log ${PREVIOUS_TAG}..v${{ inputs.release-version }} --pretty=format:"- %s (%h)" --no-merges)
         fi
 
         # Save changelog to file for GitHub Release
@@ -185,15 +303,11 @@ jobs:
         <repositories>
           <repository>
             <id>github</id>
-            <url>https://maven.pkg.github.com/austinmoody/izgw-core</url>
+            <url>https://maven.pkg.github.com/IZGateway/izgw-core</url>
           </repository>
         </repositories>
         \`\`\`
         EOF
-
-        echo "changelog<<EOF" >> $GITHUB_OUTPUT
-        cat RELEASE_NOTES.md >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
@@ -210,40 +324,92 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Bump to next SNAPSHOT version
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Update develop branch
       run: |
+        echo "Updating develop branch..."
+
+        # Checkout develop
+        git checkout develop
+        git pull origin develop
+
+        # Merge release branch to get CHANGELOG.md updates
+        echo "Merging release branch to develop for CHANGELOG updates..."
+        git merge --no-ff "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }} to develop"
+
+        # Bump to next SNAPSHOT version
         echo "Bumping to next SNAPSHOT version: ${{ inputs.next-snapshot-version }}"
         mvn versions:set -DnewVersion=${{ inputs.next-snapshot-version }} -DgenerateBackupPoms=false
         git add pom.xml
         git commit -m "chore: bump version to ${{ inputs.next-snapshot-version }}"
-        git push origin ${{ github.ref_name }}
+
+        # Push develop
+        git push origin develop
+        echo "✓ Develop branch updated with CHANGELOG and next SNAPSHOT version"
 
     - name: Summary
       run: |
-        echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## ✅ Release Complete!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Released version: **${{ inputs.release-version }}**" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Tagged as: **v${{ inputs.release-version }}**" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Deployed to GitHub Packages" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Created GitHub Release" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Bumped to: **${{ inputs.next-snapshot-version }}**" >> $GITHUB_STEP_SUMMARY
+        echo "### Release Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Release version:** ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Release branch:** ${{ steps.validate.outputs.release_branch }} (kept)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tag:** v${{ inputs.release-version }} (on main)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Next version:** ${{ inputs.next-snapshot-version }} (on develop)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### What Happened" >> $GITHUB_STEP_SUMMARY
+        echo "1. ✅ Created release branch from develop" >> $GITHUB_STEP_SUMMARY
+        echo "2. ✅ Updated CHANGELOG.md with release notes" >> $GITHUB_STEP_SUMMARY
+        echo "3. ✅ Set version to ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "4. ✅ Ran tests and security checks" >> $GITHUB_STEP_SUMMARY
+        echo "5. ✅ Built and deployed to GitHub Packages" >> $GITHUB_STEP_SUMMARY
+        echo "6. ✅ Merged release branch to main" >> $GITHUB_STEP_SUMMARY
+        echo "7. ✅ Tagged v${{ inputs.release-version }} on main" >> $GITHUB_STEP_SUMMARY
+        echo "8. ✅ Created GitHub Release" >> $GITHUB_STEP_SUMMARY
+        echo "9. ✅ Updated develop with CHANGELOG and bumped to ${{ inputs.next-snapshot-version }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-        echo "1. Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.release-version }})" >> $GITHUB_STEP_SUMMARY
-        echo "2. Notify consuming applications of the new release" >> $GITHUB_STEP_SUMMARY
-        echo "3. Update documentation if needed" >> $GITHUB_STEP_SUMMARY
+        echo "1. 📦 Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.release-version }})" >> $GITHUB_STEP_SUMMARY
+        echo "2. 📢 **Notify consuming applications (izg-hub, izg-xform) of the new release**" >> $GITHUB_STEP_SUMMARY
+        echo "3. 📋 Review CHANGELOG.md in develop branch" >> $GITHUB_STEP_SUMMARY
+        echo "4. 📚 Update integration documentation if needed" >> $GITHUB_STEP_SUMMARY
 
-    - name: Notify on failure
-      if: failure()
+    - name: Cleanup on failure
+      if: failure() && inputs.delete-release-branch-on-failure
       run: |
-        echo "## ❌ Release Failed" >> $GITHUB_STEP_SUMMARY
+        echo "Cleaning up failed release..."
+
+        # Delete release branch if it exists
+        if git ls-remote --exit-code --heads origin "${{ steps.validate.outputs.release_branch }}" >/dev/null 2>&1; then
+          echo "Deleting release branch: ${{ steps.validate.outputs.release_branch }}"
+          git push origin --delete "${{ steps.validate.outputs.release_branch }}" || true
+        fi
+
+        echo "## ❌ Release Failed - Cleaned Up" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "The release process failed. Please check the logs above." >> $GITHUB_STEP_SUMMARY
+        echo "The release process failed. The release branch has been deleted." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
-        echo "- Check that all tests pass" >> $GITHUB_STEP_SUMMARY
-        echo "- Verify no SNAPSHOT dependencies exist" >> $GITHUB_STEP_SUMMARY
-        echo "- Ensure GitHub Packages authentication is configured" >> $GITHUB_STEP_SUMMARY
-        echo "- Check that the version numbers are valid" >> $GITHUB_STEP_SUMMARY
+        echo "1. Review the error logs above" >> $GITHUB_STEP_SUMMARY
+        echo "2. Fix issues on develop branch" >> $GITHUB_STEP_SUMMARY
+        echo "3. Run the workflow again" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Common Issues" >> $GITHUB_STEP_SUMMARY
+        echo "- Tests failing: Fix tests on develop and re-run" >> $GITHUB_STEP_SUMMARY
+        echo "- SNAPSHOT dependencies: Update dependencies to release versions" >> $GITHUB_STEP_SUMMARY
+        echo "- Authentication issues: Verify GitHub Packages credentials" >> $GITHUB_STEP_SUMMARY
+        echo "- Branch/tag conflicts: Check if release already exists" >> $GITHUB_STEP_SUMMARY
+
+    - name: Notify on failure (keep branch)
+      if: failure() && !inputs.delete-release-branch-on-failure
+      run: |
+        echo "## ❌ Release Failed - Branch Kept" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "The release process failed. The release branch **${{ steps.validate.outputs.release_branch }}** has been kept for investigation." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "1. Review the error logs above" >> $GITHUB_STEP_SUMMARY
+        echo "2. Investigate the release branch manually if needed" >> $GITHUB_STEP_SUMMARY
+        echo "3. Delete the release branch when ready:" >> $GITHUB_STEP_SUMMARY
+        echo "   \`git push origin --delete ${{ steps.validate.outputs.release_branch }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "4. Fix issues on develop branch" >> $GITHUB_STEP_SUMMARY
+        echo "5. Run the workflow again" >> $GITHUB_STEP_SUMMARY
