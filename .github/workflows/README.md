@@ -32,8 +32,8 @@ This directory contains the GitHub Actions workflows for izgw-core.
 **Purpose**: Automated release process for creating stable releases
 
 **Required Inputs**:
-- `release-version`: Version to release (e.g., `2.3.0`)
-- `next-snapshot-version`: Next development version (e.g., `2.4.0-SNAPSHOT`)
+- `release-version`: Version to release (e.g., `2.3.0-izgw-core`)
+- `next-snapshot-version`: Next development version (e.g., `2.4.0-izgw-core-SNAPSHOT`)
 - `skip-tests`: Optional - skip tests (emergency only)
 
 **Process**:
@@ -53,13 +53,13 @@ This directory contains the GitHub Actions workflows for izgw-core.
 **Usage**:
 ```
 Go to Actions → Release → Run workflow
-Enter: release-version: 2.3.0
-Enter: next-snapshot-version: 2.4.0-SNAPSHOT
+Enter: release-version: 2.3.0-izgw-core
+Enter: next-snapshot-version: 2.4.0-izgw-core-SNAPSHOT
 Click: Run workflow
 ```
 
 **Outputs**:
-- Git tag (e.g., `v2.3.0`)
+- Git tag (e.g., `v2.3.0-izgw-core`)
 - GitHub Release with release notes
 - Artifacts in GitHub Packages
 - Updated pom.xml with next SNAPSHOT version
@@ -113,6 +113,8 @@ git push origin hotfix/v2.3.1
 # Second run - complete release
 Go to Actions → Hotfix Release → Run workflow (same inputs)
 ```
+
+**Note**: Hotfix versions use `X.Y.Z` format (without `-izgw-core` suffix)
 
 **Validation**:
 - Hotfix must be same major.minor as base (2.3.x only)
@@ -196,15 +198,15 @@ Error: Tests failed
 
 ### Tag Already Exists
 ```
-Error: Tag v2.3.0 already exists
+Error: Tag v2.3.0-izgw-core already exists
 ```
 **Solution**: Use a different version number or delete the existing tag (with caution)
 
 ### Version Validation Failed
 ```
-Error: Version must be in format X.Y.Z
+Error: Version must be in format X.Y.Z-izgw-core
 ```
-**Solution**: Ensure version follows semantic versioning (e.g., 2.3.0, not 2.3)
+**Solution**: Ensure version follows the required format (e.g., 2.3.0-izgw-core for releases, 2.3.0 for hotfixes)
 
 ---
 

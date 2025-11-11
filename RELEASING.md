@@ -18,8 +18,8 @@ izgw-core follows [Semantic Versioning](https://semver.org/):
 - **PATCH** version: Bug fixes (backwards-compatible)
 
 **Version Format:**
-- Development: `X.Y.Z-SNAPSHOT` (e.g., `2.3.0-SNAPSHOT`)
-- Release: `X.Y.Z` (e.g., `2.3.0`)
+- Development: `X.Y.Z-izgw-core-SNAPSHOT` (e.g., `2.3.0-izgw-core-SNAPSHOT`)
+- Release: `X.Y.Z-izgw-core` (e.g., `2.3.0-izgw-core`)
 
 ## Release Process
 
@@ -47,8 +47,8 @@ The automated release process is handled by GitHub Actions and performs all nece
 1. Go to **Actions** → **Release** in GitHub
 2. Click **Run workflow**
 3. Fill in the parameters:
-   - **Release version**: The version to release (e.g., `2.3.0`)
-   - **Next SNAPSHOT version**: The next development version (e.g., `2.4.0-SNAPSHOT`)
+   - **Release version**: The version to release (e.g., `2.3.0-izgw-core`)
+   - **Next SNAPSHOT version**: The next development version (e.g., `2.4.0-izgw-core-SNAPSHOT`)
    - **Skip tests**: Only check this for emergency releases (not recommended)
 
 4. Click **Run workflow**
@@ -63,7 +63,7 @@ The workflow will:
 5. ✅ Update version to release version
 6. ✅ Build and package
 7. ✅ Deploy to GitHub Packages
-8. ✅ Create Git tag (`vX.Y.Z`)
+8. ✅ Create Git tag (`vX.Y.Z-izgw-core`)
 9. ✅ Generate changelog from commits
 10. ✅ Create GitHub Release
 11. ✅ Bump to next SNAPSHOT version
@@ -111,7 +111,12 @@ Determine which release needs the hotfix (e.g., `2.3.0`)
 
 #### Step 3: Apply Hotfix Changes
 
-The workflow will create a hotfix branch and pause. You need to:
+The workflow will automatically detect if the hotfix branch already has commits:
+
+**First Run (no changes yet):**
+- The workflow creates a hotfix branch from the base tag
+- Pushes the branch to origin and pauses
+- You need to apply your changes manually
 
 1. Checkout the hotfix branch:
    ```bash
@@ -129,10 +134,12 @@ The workflow will create a hotfix branch and pause. You need to:
 
 #### Step 4: Complete the Hotfix
 
+**Second Run (after changes applied):**
 1. Return to **Actions** → **Hotfix Release**
 2. **Re-run** the workflow with the same parameters
-3. The workflow will:
-   - Test your changes
+3. The workflow will automatically detect the changes and proceed to:
+   - Check for SNAPSHOT dependencies
+   - Run tests
    - Build and deploy
    - Create a new release
    - Merge back to `main`
@@ -177,7 +184,7 @@ Before triggering a release, verify:
 - [ ] Release version follows semantic versioning
 - [ ] Version is not already tagged
   ```bash
-  git tag -l "v2.3.0"  # Should return nothing
+  git tag -l "v2.3.0-izgw-core"  # Should return nothing
   ```
 
 ### Communication
@@ -209,9 +216,9 @@ EOF
 
 1. **Update version to release**:
    ```bash
-   mvn versions:set -DnewVersion=2.3.0 -DgenerateBackupPoms=false
+   mvn versions:set -DnewVersion=2.3.0-izgw-core -DgenerateBackupPoms=false
    git add pom.xml
-   git commit -m "chore: release version 2.3.0"
+   git commit -m "chore: release version 2.3.0-izgw-core"
    ```
 
 2. **Run tests and checks**:
@@ -227,15 +234,15 @@ EOF
 
 4. **Create and push tag**:
    ```bash
-   git tag -a v2.3.0 -m "Release version 2.3.0"
-   git push origin v2.3.0
+   git tag -a v2.3.0-izgw-core -m "Release version 2.3.0-izgw-core"
+   git push origin v2.3.0-izgw-core
    ```
 
 5. **Bump to next SNAPSHOT**:
    ```bash
-   mvn versions:set -DnewVersion=2.4.0-SNAPSHOT -DgenerateBackupPoms=false
+   mvn versions:set -DnewVersion=2.4.0-izgw-core-SNAPSHOT -DgenerateBackupPoms=false
    git add pom.xml
-   git commit -m "chore: bump version to 2.4.0-SNAPSHOT"
+   git commit -m "chore: bump version to 2.4.0-izgw-core-SNAPSHOT"
    git push origin main
    ```
 
@@ -275,17 +282,17 @@ Solution:
 **Issue**: Tag already exists
 ```bash
 # Delete local tag
-git tag -d v2.3.0
+git tag -d v2.3.0-izgw-core
 
 # Delete remote tag (use with caution!)
-git push origin :refs/tags/v2.3.0
+git push origin :refs/tags/v2.3.0-izgw-core
 ```
 
 **Issue**: Version already deployed to GitHub Packages
 ```
 Solution:
 You cannot overwrite a published version in GitHub Packages.
-Bump to the next patch version (e.g., 2.3.1 instead of 2.3.0).
+Bump to the next patch version (e.g., 2.3.1-izgw-core instead of 2.3.0-izgw-core).
 ```
 
 ### Hotfix Issues
