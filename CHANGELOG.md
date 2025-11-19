@@ -1,3 +1,12 @@
+## [2.5.0-izgw-core] - 2025-11-19
+
+### Changes
+- Update parent version from 1.0.1-SNAPSHOT to 1.0.2-RELEASE (e44eee0)
+- feat: implement release branch strategy for standard releases and hotfixes (55f3dee)
+- feat: update hotfix workflow to use -izgw-core version format (eaf74d1)
+- docs: fix version format discrepancies in release documentation (5e1b039)
+- chore: bump version to 2.5.0-izgw-core-SNAPSHOT (8b64b41)
+
 # Changelog
 
 All notable changes to the IZ Gateway Core library will be documented in this file.
