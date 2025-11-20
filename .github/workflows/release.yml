@@ -133,18 +133,32 @@ jobs:
         echo "✓ Release branch created and pushed"
 
     - name: Update CHANGELOG.md
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Generating changelog entries..."
+        echo "Generating changelog entries from merged PRs..."
 
         # Get the previous tag
         PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD 2>/dev/null || echo "")
 
         if [ -z "$PREVIOUS_TAG" ]; then
-          echo "First release, showing all commits"
-          COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          echo "First release, getting all merge commits"
+          # Get all merge commits
+          PR_CHANGES=$(git log --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
         else
           echo "Generating changelog from $PREVIOUS_TAG to HEAD"
-          COMMITS=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          # Get merge commits since the previous tag
+          PR_CHANGES=$(git log ${PREVIOUS_TAG}..HEAD --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
+        fi
+
+        # Check if we found any PRs
+        if [ -z "$PR_CHANGES" ]; then
+          echo "⚠️  No merged PRs found. Using commit messages as fallback."
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PR_CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            PR_CHANGES=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
         fi
 
         # Get current date
@@ -155,7 +169,7 @@ jobs:
         ## [${{ inputs.release-version }}] - $RELEASE_DATE
 
         ### Changes
-        $COMMITS
+        $PR_CHANGES
 
         EOF
 
@@ -265,16 +279,28 @@ jobs:
 
     - name: Generate GitHub Release notes
       id: release-notes
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Generating release notes..."
+        echo "Generating release notes from merged PRs..."
         PREVIOUS_TAG=$(git describe --tags --abbrev=0 "v${{ inputs.release-version }}"^ 2>/dev/null || echo "")
 
         if [ -z "$PREVIOUS_TAG" ]; then
-          echo "First release, showing all commits"
-          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges "v${{ inputs.release-version }}")
+          echo "First release, getting all merge commits"
+          PR_CHANGES=$(git log --merges --oneline "v${{ inputs.release-version }}" | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
         else
           echo "Generating changelog from $PREVIOUS_TAG to v${{ inputs.release-version }}"
-          CHANGELOG=$(git log ${PREVIOUS_TAG}..v${{ inputs.release-version }} --pretty=format:"- %s (%h)" --no-merges)
+          PR_CHANGES=$(git log ${PREVIOUS_TAG}..v${{ inputs.release-version }} --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
+        fi
+
+        # Fallback to commits if no PRs found
+        if [ -z "$PR_CHANGES" ]; then
+          echo "⚠️  No merged PRs found. Using commit messages as fallback."
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PR_CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges "v${{ inputs.release-version }}")
+          else
+            PR_CHANGES=$(git log ${PREVIOUS_TAG}..v${{ inputs.release-version }} --pretty=format:"- %s (%h)" --no-merges)
+          fi
         fi
 
         # Save changelog to file for GitHub Release
@@ -283,7 +309,7 @@ jobs:
 
         ## Changes
 
-        $CHANGELOG
+        $PR_CHANGES
 
         ## Installation
 
