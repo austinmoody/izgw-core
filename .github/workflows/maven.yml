@@ -1,17 +1,20 @@
 name: Java CI with Maven
 
+# DISABLED: This workflow is currently disabled and will only run if manually triggered
+# To re-enable automatic runs, uncomment the push/pull_request triggers below
 on:
-  push:
-    branches:
-      - Release*
-      - main
-      - develop
-
-  pull_request:
-    branches:
-      - Release*
-      - main
-      - develop
+  workflow_dispatch:  # Manual trigger only
+  # push:
+  #   branches:
+  #     - Release*
+  #     - main
+  #     - develop
+  #
+  # pull_request:
+  #   branches:
+  #     - Release*
+  #     - main
+  #     - develop
 
 # Ensure only one build changes dev environment at the same time    
 concurrency: izgw-core-dev

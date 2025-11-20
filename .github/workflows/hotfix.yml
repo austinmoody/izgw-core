@@ -176,21 +176,30 @@ jobs:
 
     - name: Update CHANGELOG.md
       if: env.status == 'ready_for_release'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Updating CHANGELOG.md for hotfix..."
 
         # Get current date
         RELEASE_DATE=$(date +%Y-%m-%d)
 
-        # Generate changelog from base version to current
-        CHANGELOG=$(git log "v${{ inputs.base-version }}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+        # Generate changelog from base version to current using PRs
+        echo "Getting PRs merged since v${{ inputs.base-version }}"
+        PR_CHANGES=$(git log "v${{ inputs.base-version }}..HEAD" --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
+
+        # Fallback to commits if no PRs found
+        if [ -z "$PR_CHANGES" ]; then
+          echo "⚠️  No merged PRs found. Using commit messages as fallback."
+          PR_CHANGES=$(git log "v${{ inputs.base-version }}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+        fi
 
         # Create new changelog entry
         cat > CHANGELOG_ENTRY.md << EOF
         ## [${{ inputs.hotfix-version }}] - $RELEASE_DATE (Hotfix)
 
         ### Fixed
-        $CHANGELOG
+        $PR_CHANGES
 
         EOF
 
@@ -247,9 +256,19 @@ jobs:
 
     - name: Generate hotfix changelog
       if: env.status == 'ready_for_release'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Generating hotfix changelog..."
-        CHANGELOG=$(git log "v${{ inputs.base-version }}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+
+        # Get PRs merged since base version
+        PR_CHANGES=$(git log "v${{ inputs.base-version }}..HEAD" --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
+
+        # Fallback to commits if no PRs found
+        if [ -z "$PR_CHANGES" ]; then
+          echo "⚠️  No merged PRs found. Using commit messages as fallback."
+          PR_CHANGES=$(git log "v${{ inputs.base-version }}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+        fi
 
         cat << EOF > HOTFIX_NOTES.md
         # Hotfix Release ${{ inputs.hotfix-version }}
@@ -258,7 +277,7 @@ jobs:
 
         ## Changes
 
-        $CHANGELOG
+        $PR_CHANGES
 
         ## Installation
 
