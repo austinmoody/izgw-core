@@ -1,3 +1,11 @@
+## [2.6.0-izgw-core] - 2025-11-20
+
+### Changes
+- IGDD-3939 - Add database url sanitation for HealthService ([#13](https://github.com/austinmoody/izgw-core/pull/13))
+- IGDD-1234 - update release and hotfix workflows to use PR titles for change log ([#12](https://github.com/austinmoody/izgw-core/pull/12))
+- feat: implement release branch strategy for standard releases and hotfixes ([#11](https://github.com/austinmoody/izgw-core/pull/11))
+- Update hotfix workflow to use -izgw-core version format ([#10](https://github.com/austinmoody/izgw-core/pull/10))
+
 ## [2.5.0-izgw-core] - 2025-11-19
 
 ### Changes
