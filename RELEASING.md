@@ -74,7 +74,7 @@ The workflow automatically performs these steps:
 - ✅ Pushes release branch to origin
 
 **3. Prepare Release (on release branch)**
-- ✅ Updates `CHANGELOG.md` with release notes from commits
+- ✅ Updates `RELEASE_NOTES.md` with release notes from commits
 - ✅ Sets version to release version (removes `-SNAPSHOT`)
 - ✅ Commits changes: `"chore: prepare release X.Y.Z-izgw-core"`
 - ✅ Runs full test suite
@@ -90,7 +90,7 @@ The workflow automatically performs these steps:
 - ✅ Creates GitHub Release with artifacts
 
 **6. Update Develop**
-- ✅ Merges release branch back to `develop` (for CHANGELOG.md)
+- ✅ Merges release branch back to `develop` (for RELEASE_NOTES.md)
 - ✅ Bumps `develop` version to next SNAPSHOT
 - ✅ Commits: `"chore: bump version to X.Y.Z-izgw-core-SNAPSHOT"`
 - ✅ Pushes `develop`
@@ -114,7 +114,7 @@ After the workflow completes successfully:
    - Highlight any breaking changes
 
 3. **Review Generated Documentation**
-   - Check `CHANGELOG.md` in `develop` branch
+   - Check `RELEASE_NOTES.md` in `develop` branch
    - Verify release notes are accurate
    - Update project documentation if needed
 
@@ -279,11 +279,11 @@ git checkout -b release/2.4.0-izgw-core
 git push origin release/2.4.0-izgw-core
 ```
 
-**2. Update CHANGELOG.md**
+**2. Update RELEASE_NOTES.md**
 ```bash
-# Manually edit CHANGELOG.md with release notes
-git add CHANGELOG.md
-git commit -m "docs: update CHANGELOG.md for release 2.4.0-izgw-core"
+# Manually edit RELEASE_NOTES.md with release notes
+git add RELEASE_NOTES.md
+git commit -m "docs: update RELEASE_NOTES.md for release 2.4.0-izgw-core"
 ```
 
 **3. Set Release Version**
@@ -440,7 +440,7 @@ git push origin develop
 
 5. **Document breaking changes** - Make upgrade paths clear for consumers
 
-6. **Keep CHANGELOG.md updated** - Workflow does this automatically
+6. **Keep RELEASE_NOTES.md updated** - Workflow does this automatically
 
 7. **Version bumps should be intentional**:
    - Patch (2.3.0 → 2.3.1): Bug fixes only
@@ -451,7 +451,7 @@ git push origin develop
 
 9. **Hotfixes should be minimal** - Only include the critical fix
 
-10. **Review generated CHANGELOG** - Edit manually if needed before merging
+10. **Review generated RELEASE_NOTES** - Edit manually if needed before merging
 
 ## Workflow Diagram
 
@@ -462,7 +462,7 @@ develop (2.4.0-SNAPSHOT)
    |
    +---> release/2.4.0-izgw-core
    |       |
-   |       | - Update CHANGELOG.md
+   |       | - Update RELEASE_NOTES.md
    |       | - Set version to 2.4.0-izgw-core
    |       | - Run tests
    |       | - Build & deploy

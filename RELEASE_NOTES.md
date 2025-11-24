@@ -15,7 +15,7 @@
 - docs: fix version format discrepancies in release documentation (5e1b039)
 - chore: bump version to 2.5.0-izgw-core-SNAPSHOT (8b64b41)
 
-# Changelog
+# Release Notes
 
 All notable changes to the IZ Gateway Core library will be documented in this file.
 
