@@ -181,6 +181,7 @@ jobs:
         else
           # Create new RELEASE_NOTES.md
           cat > RELEASE_NOTES.md << EOF
+        # Release Notes
 
         All notable changes to this project will be documented in this file.
 
