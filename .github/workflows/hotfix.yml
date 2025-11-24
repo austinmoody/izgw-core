@@ -174,7 +174,7 @@ jobs:
         echo "Running test suite..."
         mvn -B clean test
 
-    - name: Update CHANGELOG.md
+    - name: Update RELEASE_NOTES.md
       if: env.status == 'ready_for_release'
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
