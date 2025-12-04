@@ -225,7 +225,6 @@ jobs:
       run: |
         echo "Running OWASP dependency check..."
         mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
-      continue-on-error: true  # Don't fail the release, but report issues
 
     - name: Upload dependency check report
       if: ${{ !inputs.skip-tests }}
