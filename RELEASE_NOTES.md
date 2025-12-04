@@ -1,3 +1,13 @@
+## [2.7.0-izgw-core] - 2025-12-04
+
+### Changes
+- Rename CHANGELOG.md to RELEASE_NOTES.md and update workflows (hopeful… ([#14](https://github.com/austinmoody/izgw-core/pull/14))
+- Fix CHANGELOG.md references in hotfix.yml workflow ([#15](https://github.com/austinmoody/izgw-core/pull/15))
+- IGDD-3939 - Add database url sanitation for HealthService ([#13](https://github.com/austinmoody/izgw-core/pull/13))
+- IGDD-1234 - update release and hotfix workflows to use PR titles for change log ([#12](https://github.com/austinmoody/izgw-core/pull/12))
+- feat: implement release branch strategy for standard releases and hotfixes ([#11](https://github.com/austinmoody/izgw-core/pull/11))
+- Update hotfix workflow to use -izgw-core version format ([#10](https://github.com/austinmoody/izgw-core/pull/10))
+
 ## [2.6.0-izgw-core] - 2025-11-20
 
 ### Changes
@@ -15,7 +25,7 @@
 - docs: fix version format discrepancies in release documentation (5e1b039)
 - chore: bump version to 2.5.0-izgw-core-SNAPSHOT (8b64b41)
 
-# Changelog
+# Release Notes
 
 All notable changes to the IZ Gateway Core library will be documented in this file.
 
