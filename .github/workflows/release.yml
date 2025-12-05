@@ -403,9 +403,9 @@ jobs:
       run: |
         echo "Updating develop branch..."
 
-        # Checkout develop
-        git checkout develop
-        git pull origin develop
+        # Fetch latest develop and checkout cleanly (discarding any local changes from main)
+        git fetch origin develop
+        git checkout -B develop origin/develop
 
         # Merge release branch to get RELEASE_NOTES.md updates
         echo "Merging release branch to develop for RELEASE_NOTES updates..."
@@ -462,6 +462,23 @@ jobs:
           git push origin --delete "v${{ inputs.release-version }}" || true
         fi
 
+        # Revert merge to main if it happened
+        if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
+          echo "Checking if merge to main needs to be reverted..."
+          git fetch origin main
+          git checkout main
+
+          # Check if the last commit is a merge from our release branch
+          LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
+          if [[ "$LAST_COMMIT_MSG" == *"Merge release branch ${{ steps.validate.outputs.release_branch }}"* ]]; then
+            echo "Reverting merge commit on main..."
+            git reset --hard HEAD~1
+            git push origin main --force || echo "⚠️  Failed to revert main - manual cleanup may be required"
+          else
+            echo "No merge commit found on main (or other commits after it) - skipping revert"
+          fi
+        fi
+
         # Delete release branch if it exists
         if git ls-remote --exit-code --heads origin "${{ steps.validate.outputs.release_branch }}" >/dev/null 2>&1; then
           echo "Deleting release branch: ${{ steps.validate.outputs.release_branch }}"
@@ -480,12 +497,20 @@ jobs:
           gh api --method DELETE "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/$VERSION_ID" || true
         fi
 
+        # Delete GitHub Release if it was created
+        if gh release view "v${{ inputs.release-version }}" >/dev/null 2>&1; then
+          echo "Deleting GitHub Release..."
+          gh release delete "v${{ inputs.release-version }}" --yes || true
+        fi
+
         echo "## ❌ Release Failed - Cleaned Up" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "The release process failed. Cleaned up:" >> $GITHUB_STEP_SUMMARY
-        echo "- Release branch (if created)" >> $GITHUB_STEP_SUMMARY
-        echo "- Git tag (if created)" >> $GITHUB_STEP_SUMMARY
-        echo "- GitHub Packages artifact (if deployed)" >> $GITHUB_STEP_SUMMARY
+        echo "The release process failed. Attempted cleanup of:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Git tag (if created)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Main branch merge commit (if created)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Release branch (if created)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ GitHub Packages artifact (if deployed)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ GitHub Release (if created)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
         echo "1. Review the error logs above" >> $GITHUB_STEP_SUMMARY
@@ -508,17 +533,27 @@ jobs:
         echo "### Manual Cleanup Required" >> $GITHUB_STEP_SUMMARY
         echo "You may need to clean up the following (check if they exist):" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "1. **Git tag** (if created):" >> $GITHUB_STEP_SUMMARY
+        echo "1. **Main branch merge** (if it happened):" >> $GITHUB_STEP_SUMMARY
+        echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "   git checkout main" >> $GITHUB_STEP_SUMMARY
+        echo "   git reset --hard HEAD~1  # Revert the merge commit" >> $GITHUB_STEP_SUMMARY
+        echo "   git push origin main --force" >> $GITHUB_STEP_SUMMARY
+        echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "2. **Git tag** (if created):" >> $GITHUB_STEP_SUMMARY
         echo "   \`git push origin --delete v${{ inputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "2. **Release branch** (when ready):" >> $GITHUB_STEP_SUMMARY
+        echo "3. **Release branch** (when ready):" >> $GITHUB_STEP_SUMMARY
         echo "   \`git push origin --delete ${{ steps.validate.outputs.release_branch }}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "3. **GitHub Packages artifact** (if deployed):" >> $GITHUB_STEP_SUMMARY
+        echo "4. **GitHub Packages artifact** (if deployed):" >> $GITHUB_STEP_SUMMARY
         echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
         echo "   VERSION_ID=\\\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"$(echo "${{ inputs.release-version }}" | sed 's/-izgw-core$//')\") | .id')" >> $GITHUB_STEP_SUMMARY
         echo "   gh api --method DELETE /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/\\\$VERSION_ID" >> $GITHUB_STEP_SUMMARY
         echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "5. **GitHub Release** (if created):" >> $GITHUB_STEP_SUMMARY
+        echo "   \`gh release delete v${{ inputs.release-version }} --yes\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
         echo "1. Review the error logs above" >> $GITHUB_STEP_SUMMARY
