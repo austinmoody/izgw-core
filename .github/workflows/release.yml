@@ -451,8 +451,16 @@ jobs:
 
     - name: Cleanup on failure
       if: failure() && inputs.delete-release-branch-on-failure
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Cleaning up failed release..."
+
+        # Delete git tag if it exists
+        if git ls-remote --exit-code --tags origin "v${{ inputs.release-version }}" >/dev/null 2>&1; then
+          echo "Deleting git tag: v${{ inputs.release-version }}"
+          git push origin --delete "v${{ inputs.release-version }}" || true
+        fi
 
         # Delete release branch if it exists
         if git ls-remote --exit-code --heads origin "${{ steps.validate.outputs.release_branch }}" >/dev/null 2>&1; then
@@ -460,9 +468,24 @@ jobs:
           git push origin --delete "${{ steps.validate.outputs.release_branch }}" || true
         fi
 
+        # Try to delete artifact from GitHub Packages if it was deployed
+        VERSION_NUM=$(echo "${{ inputs.release-version }}" | sed 's/-izgw-core$//')
+        VERSION_ID=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions" \
+          --jq ".[] | select(.name==\"$VERSION_NUM\") | .id" 2>/dev/null || echo "")
+
+        if [ -n "$VERSION_ID" ]; then
+          echo "Deleting artifact from GitHub Packages (version ID: $VERSION_ID)..."
+          gh api --method DELETE "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/$VERSION_ID" || true
+        fi
+
         echo "## ❌ Release Failed - Cleaned Up" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "The release process failed. The release branch has been deleted." >> $GITHUB_STEP_SUMMARY
+        echo "The release process failed. Cleaned up:" >> $GITHUB_STEP_SUMMARY
+        echo "- Release branch (if created)" >> $GITHUB_STEP_SUMMARY
+        echo "- Git tag (if created)" >> $GITHUB_STEP_SUMMARY
+        echo "- GitHub Packages artifact (if deployed)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
         echo "1. Review the error logs above" >> $GITHUB_STEP_SUMMARY
@@ -482,10 +505,24 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "The release process failed. The release branch **${{ steps.validate.outputs.release_branch }}** has been kept for investigation." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Manual Cleanup Required" >> $GITHUB_STEP_SUMMARY
+        echo "You may need to clean up the following (check if they exist):" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "1. **Git tag** (if created):" >> $GITHUB_STEP_SUMMARY
+        echo "   \`git push origin --delete v${{ inputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "2. **Release branch** (when ready):" >> $GITHUB_STEP_SUMMARY
+        echo "   \`git push origin --delete ${{ steps.validate.outputs.release_branch }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "3. **GitHub Packages artifact** (if deployed):" >> $GITHUB_STEP_SUMMARY
+        echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "   VERSION_ID=\\\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"$(echo "${{ inputs.release-version }}" | sed 's/-izgw-core$//')\") | .id')" >> $GITHUB_STEP_SUMMARY
+        echo "   gh api --method DELETE /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/\\\$VERSION_ID" >> $GITHUB_STEP_SUMMARY
+        echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
         echo "1. Review the error logs above" >> $GITHUB_STEP_SUMMARY
         echo "2. Investigate the release branch manually if needed" >> $GITHUB_STEP_SUMMARY
-        echo "3. Delete the release branch when ready:" >> $GITHUB_STEP_SUMMARY
-        echo "   \`git push origin --delete ${{ steps.validate.outputs.release_branch }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "3. Clean up artifacts using commands above" >> $GITHUB_STEP_SUMMARY
         echo "4. Fix issues on develop branch" >> $GITHUB_STEP_SUMMARY
         echo "5. Run the workflow again" >> $GITHUB_STEP_SUMMARY

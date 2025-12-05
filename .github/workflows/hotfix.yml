@@ -428,7 +428,33 @@ jobs:
 
     - name: Notify on failure
       if: failure()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "## ❌ Hotfix Failed" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "The hotfix process failed. Please check the logs above." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Manual Cleanup May Be Required" >> $GITHUB_STEP_SUMMARY
+        echo "Depending on when the failure occurred, you may need to clean up:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "1. **Git tag** (if created):" >> $GITHUB_STEP_SUMMARY
+        echo "   \`git push origin --delete v${{ inputs.hotfix-version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "2. **Hotfix branch** (if needed):" >> $GITHUB_STEP_SUMMARY
+        echo "   \`git push origin --delete ${{ env.branch }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "3. **GitHub Packages artifact** (if deployed):" >> $GITHUB_STEP_SUMMARY
+        echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "   VERSION_ID=\\\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"$(echo "${{ inputs.hotfix-version }}" | sed 's/-izgw-core$//')\") | .id')" >> $GITHUB_STEP_SUMMARY
+        echo "   gh api --method DELETE /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/\\\$VERSION_ID" >> $GITHUB_STEP_SUMMARY
+        echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "4. **GitHub Release** (if created):" >> $GITHUB_STEP_SUMMARY
+        echo "   \`gh release delete v${{ inputs.hotfix-version }} --yes\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "1. Review error logs to identify the failure point" >> $GITHUB_STEP_SUMMARY
+        echo "2. Clean up any artifacts created using commands above" >> $GITHUB_STEP_SUMMARY
+        echo "3. Fix the underlying issue" >> $GITHUB_STEP_SUMMARY
+        echo "4. Re-run the hotfix workflow" >> $GITHUB_STEP_SUMMARY
