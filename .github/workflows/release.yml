@@ -243,14 +243,6 @@ jobs:
         echo "Building release artifacts..."
         mvn -B clean package -DskipTests=${{ inputs.skip-tests }} -DskipDependencyCheck=true
 
-    - name: Deploy to GitHub Packages
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COMMON_PASS: ${{ secrets.COMMON_PASS }}
-      run: |
-        echo "Deploying to GitHub Packages..."
-        mvn -B deploy -DskipTests -DskipDependencyCheck=true
-
     - name: Merge release branch to main
       run: |
         echo "Merging release branch to main..."
@@ -260,7 +252,9 @@ jobs:
           echo "Main branch exists, fetching..."
           git fetch origin main
           git checkout main
-          git merge --no-ff "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }}"
+          # Use -X theirs to prefer release branch version for conflicts (e.g., RELEASE_NOTES.md)
+          # During a release, the release branch has the authoritative version of release documentation
+          git merge --no-ff -X theirs "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }}"
         else
           echo "Main branch does not exist (first release), creating from release branch..."
           git checkout -b main
@@ -275,6 +269,16 @@ jobs:
         git tag -a "v${{ inputs.release-version }}" -m "Release version ${{ inputs.release-version }}"
         git push origin "v${{ inputs.release-version }}"
         echo "✓ Tag created on main"
+
+    - name: Deploy to GitHub Packages
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COMMON_PASS: ${{ secrets.COMMON_PASS }}
+      run: |
+        echo "Deploying to GitHub Packages..."
+        echo "Git operations completed successfully - proceeding with artifact deployment"
+        mvn -B deploy -DskipTests -DskipDependencyCheck=true
+        echo "✓ Artifacts deployed to GitHub Packages"
 
     - name: Generate GitHub Release notes
       id: release-notes
@@ -386,11 +390,12 @@ jobs:
         echo "2. ✅ Updated RELEASE_NOTES.md with release notes" >> $GITHUB_STEP_SUMMARY
         echo "3. ✅ Set version to ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
         echo "4. ✅ Ran tests and security checks" >> $GITHUB_STEP_SUMMARY
-        echo "5. ✅ Built and deployed to GitHub Packages" >> $GITHUB_STEP_SUMMARY
-        echo "6. ✅ Merged release branch to main" >> $GITHUB_STEP_SUMMARY
+        echo "5. ✅ Built release artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "6. ✅ Merged release branch to main (auto-resolving conflicts)" >> $GITHUB_STEP_SUMMARY
         echo "7. ✅ Tagged v${{ inputs.release-version }} on main" >> $GITHUB_STEP_SUMMARY
-        echo "8. ✅ Created GitHub Release" >> $GITHUB_STEP_SUMMARY
-        echo "9. ✅ Updated develop with RELEASE_NOTES and bumped to ${{ inputs.next-snapshot-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "8. ✅ Deployed artifacts to GitHub Packages" >> $GITHUB_STEP_SUMMARY
+        echo "9. ✅ Created GitHub Release" >> $GITHUB_STEP_SUMMARY
+        echo "10. ✅ Updated develop with RELEASE_NOTES and bumped to ${{ inputs.next-snapshot-version }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
         echo "1. 📦 Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.release-version }})" >> $GITHUB_STEP_SUMMARY
