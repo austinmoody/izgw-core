@@ -1,3 +1,17 @@
+## [2.7.0-izgw-core] - 2025-12-05
+
+### Changes
+- feat: add fail-fast validation for existing artifacts ([#19](https://github.com/austinmoody/izgw-core/pull/19))
+- fix: reorder release workflow to prevent orphaned artifacts ([#18](https://github.com/austinmoody/izgw-core/pull/18))
+- Update tomcat and netty versions for dependency check ([#17](https://github.com/austinmoody/izgw-core/pull/17))
+- fix: prevent release deployment when OWASP dependency check fails ([#16](https://github.com/austinmoody/izgw-core/pull/16))
+- Rename CHANGELOG.md to RELEASE_NOTES.md and update workflows (hopeful… ([#14](https://github.com/austinmoody/izgw-core/pull/14))
+- Fix CHANGELOG.md references in hotfix.yml workflow ([#15](https://github.com/austinmoody/izgw-core/pull/15))
+- IGDD-3939 - Add database url sanitation for HealthService ([#13](https://github.com/austinmoody/izgw-core/pull/13))
+- IGDD-1234 - update release and hotfix workflows to use PR titles for change log ([#12](https://github.com/austinmoody/izgw-core/pull/12))
+- feat: implement release branch strategy for standard releases and hotfixes ([#11](https://github.com/austinmoody/izgw-core/pull/11))
+- Update hotfix workflow to use -izgw-core version format ([#10](https://github.com/austinmoody/izgw-core/pull/10))
+
 ## [2.6.0-izgw-core] - 2025-11-20
 
 ### Changes
