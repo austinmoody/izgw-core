@@ -262,14 +262,6 @@ jobs:
         echo "Building hotfix artifacts..."
         mvn -B clean package -DskipDependencyCheck=true
 
-    - name: Deploy to GitHub Packages
-      if: env.status == 'ready_for_release'
-      env:
-        COMMON_PASS: ${{ secrets.COMMON_PASS }}
-      run: |
-        echo "Deploying hotfix to GitHub Packages..."
-        mvn -B deploy -DskipTests -DskipDependencyCheck=true
-
     - name: Generate hotfix changelog
       if: env.status == 'ready_for_release'
       env:
@@ -333,7 +325,9 @@ jobs:
           echo "Main branch exists, fetching..."
           git fetch origin main
           git checkout main
-          git merge --no-ff "${{ env.branch }}" -m "Merge hotfix ${{ env.branch }} to main"
+          # Use -X theirs to prefer hotfix branch version for conflicts
+          # During a hotfix, the hotfix branch has the authoritative version of release documentation
+          git merge --no-ff -X theirs "${{ env.branch }}" -m "Merge hotfix ${{ env.branch }} to main"
         else
           echo "Main branch does not exist, creating from hotfix branch..."
           git checkout -b main
@@ -348,6 +342,16 @@ jobs:
         git tag -a "v${{ inputs.hotfix-version }}" -m "Hotfix version ${{ inputs.hotfix-version }}"
         git push origin "v${{ inputs.hotfix-version }}"
         echo "✓ Tag created on main"
+
+    - name: Deploy to GitHub Packages
+      if: env.status == 'ready_for_release'
+      env:
+        COMMON_PASS: ${{ secrets.COMMON_PASS }}
+      run: |
+        echo "Deploying hotfix to GitHub Packages..."
+        echo "Git operations completed successfully - proceeding with artifact deployment"
+        mvn -B deploy -DskipTests -DskipDependencyCheck=true
+        echo "✓ Hotfix artifacts deployed to GitHub Packages"
 
     - name: Success Summary
       if: env.status == 'ready_for_release'
