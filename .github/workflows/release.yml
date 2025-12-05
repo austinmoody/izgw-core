@@ -125,6 +125,52 @@ jobs:
           echo "✓ No SNAPSHOT dependencies found (parent BOM and project itself excluded)"
         fi
 
+    - name: Check if artifact already exists in GitHub Packages
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Checking if artifact already exists in GitHub Packages..."
+
+        # Extract version without -izgw-core suffix for artifact path
+        VERSION_NUM=$(echo "${{ inputs.release-version }}" | sed 's/-izgw-core$//')
+
+        # Try to check if the package version exists using GitHub API
+        # Note: This checks for the package version, not individual artifacts
+        PACKAGE_EXISTS=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions" \
+          --jq ".[] | select(.name==\"$VERSION_NUM\") | .name" 2>/dev/null || echo "")
+
+        if [ -n "$PACKAGE_EXISTS" ]; then
+          echo "❌ ERROR: Artifact version $VERSION_NUM already exists in GitHub Packages"
+          echo ""
+          echo "This likely means a previous release attempt failed after deploying artifacts."
+          echo ""
+          echo "To clean up and retry the release:"
+          echo ""
+          echo "1. Delete the package version from GitHub Packages:"
+          echo "   • Via GitHub CLI:"
+          echo "     VERSION_ID=\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"$VERSION_NUM\") | .id')"
+          echo "     gh api --method DELETE /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/\$VERSION_ID"
+          echo ""
+          echo "   • Via GitHub UI:"
+          echo "     https://github.com/orgs/IZGateway/packages?repo_name=izgw-core"
+          echo "     → Select 'izgw-core' package → Find version $VERSION_NUM → Delete"
+          echo ""
+          echo "2. Delete the release branch if it was created:"
+          echo "   git push origin --delete release/${{ inputs.release-version }}"
+          echo ""
+          echo "3. Delete the git tag if it was created:"
+          echo "   git push origin --delete v${{ inputs.release-version }}"
+          echo ""
+          echo "4. If merge to main happened, you may need to revert the merge commit on main"
+          echo ""
+          echo "5. After cleanup, re-run this workflow"
+          exit 1
+        fi
+
+        echo "✓ Artifact does not exist in GitHub Packages yet"
+
     - name: Create release branch
       run: |
         echo "Creating release branch: ${{ steps.validate.outputs.release_branch }}"
