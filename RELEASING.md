@@ -53,8 +53,8 @@ Before starting a release, ensure:
    - **Branch**: Select `develop` (must be develop!)
    - **Release version**: The version to release (e.g., `2.4.0-izgw-core`)
    - **Next SNAPSHOT version**: The next development version (e.g., `2.5.0-izgw-core-SNAPSHOT`)
-   - **Skip tests**: ❌ Leave unchecked (only for emergencies)
-   - **Delete release branch on failure**: ✅ Leave checked (default)
+   - **Skip tests**: Leave unchecked (only for emergencies)
+   - **Delete release branch on failure**: Leave checked (default)
 
 4. **Click "Run workflow"**
 
@@ -63,40 +63,51 @@ Before starting a release, ensure:
 The workflow automatically performs these steps:
 
 **1. Validation Phase**
-- ✅ Validates version format
-- ✅ Confirms running from `develop` branch
-- ✅ Checks release branch doesn't already exist
-- ✅ Checks tag doesn't already exist
-- ✅ Verifies no SNAPSHOT dependencies
+- Validates version format (X.Y.Z-izgw-core)
+- Confirms running from `develop` branch
+- Checks release branch doesn't already exist
+- Checks tag doesn't already exist
+- Verifies no SNAPSHOT dependencies (except parent BOM)
+- Checks if artifact already exists in GitHub Packages
 
 **2. Release Branch Creation**
-- ✅ Creates `release/X.Y.Z-izgw-core` branch from `develop`
-- ✅ Pushes release branch to origin
+- Creates `release/X.Y.Z-izgw-core` branch from `develop`
+- Pushes release branch to origin
 
 **3. Prepare Release (on release branch)**
-- ✅ Updates `RELEASE_NOTES.md` with release notes from commits
-- ✅ Sets version to release version (removes `-SNAPSHOT`)
-- ✅ Commits changes: `"chore: prepare release X.Y.Z-izgw-core"`
-- ✅ Runs full test suite
-- ✅ Runs OWASP dependency check
+- Updates `RELEASE_NOTES.md` with release notes from merged PRs
+- Sets version to release version (removes `-SNAPSHOT`)
+- Commits changes: `"chore: prepare release X.Y.Z-izgw-core"`
+- Runs full test suite (unless skip-tests is enabled)
+- Runs OWASP dependency check (unless skip-tests is enabled)
 
-**4. Build and Deploy**
-- ✅ Builds release artifacts
-- ✅ Deploys to GitHub Packages
+**4. Build Artifacts**
+- Builds release artifacts with `mvn clean package`
 
 **5. Merge to Main**
-- ✅ Merges release branch to `main` (no-fast-forward)
-- ✅ Creates tag `vX.Y.Z-izgw-core` on `main`
-- ✅ Creates GitHub Release with artifacts
+- Merges release branch to `main` (no-fast-forward, using theirs strategy for conflicts)
+- Pushes to main branch
 
-**6. Update Develop**
-- ✅ Merges release branch back to `develop` (for RELEASE_NOTES.md)
-- ✅ Bumps `develop` version to next SNAPSHOT
-- ✅ Commits: `"chore: bump version to X.Y.Z-izgw-core-SNAPSHOT"`
-- ✅ Pushes `develop`
+**6. Create Tag**
+- Creates tag `vX.Y.Z-izgw-core` on `main` branch
+- Pushes tag to origin
 
-**7. Keep Release Branch**
-- ✅ Release branch is **kept** for future reference
+**7. Deploy to GitHub Packages**
+- Deploys artifacts to GitHub Packages with `mvn deploy`
+
+**8. Create GitHub Release**
+- Generates release notes from merged PRs
+- Creates GitHub Release with generated notes
+- Attaches JAR and POM artifacts
+
+**9. Update Develop**
+- Merges release branch back to `develop` (for RELEASE_NOTES.md updates)
+- Bumps `develop` version to next SNAPSHOT
+- Commits: `"chore: bump version to X.Y.Z-izgw-core-SNAPSHOT"`
+- Pushes `develop`
+
+**10. Keep Release Branch**
+- Release branch is **kept** for future reference and traceability
 
 #### Step 3: Post-Release Tasks
 
@@ -456,28 +467,30 @@ git push origin develop
 ## Workflow Diagram
 
 ```
-develop (2.4.0-SNAPSHOT)
+develop (2.4.0-izgw-core-SNAPSHOT)
    |
-   | [Trigger Release Workflow]
+   | [Trigger Release Workflow - Validate]
    |
-   +---> release/2.4.0-izgw-core
+   +---> release/2.4.0-izgw-core (created)
    |       |
    |       | - Update RELEASE_NOTES.md
    |       | - Set version to 2.4.0-izgw-core
-   |       | - Run tests
-   |       | - Build & deploy
+   |       | - Run tests & OWASP check
+   |       | - Build artifacts
    |       |
-   |       +---> main (merge)
-   |       |       |
-   |       |       +---> tag: v2.4.0-izgw-core
-   |       |       |
-   |       |       +---> GitHub Release
-   |       |
-   |       +---> develop (merge back)
+   |       +---> main (merge release branch)
    |               |
-   |               +---> Bump to 2.5.0-izgw-core-SNAPSHOT
+   |               +---> tag: v2.4.0-izgw-core
+   |               |
+   |               +---> Deploy to GitHub Packages
+   |               |
+   |               +---> GitHub Release (with artifacts)
    |
-   | (release branch kept)
+   +---> develop (merge release branch back)
+           |
+           +---> Bump to 2.5.0-izgw-core-SNAPSHOT
+
+(release branch kept for history)
 ```
 
 ## Additional Resources
