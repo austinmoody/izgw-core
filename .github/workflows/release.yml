@@ -60,19 +60,19 @@ jobs:
 
         # Validate version formats
         if [[ ! "${{ inputs.release-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core$ ]]; then
-          echo "❌ Error: Release version must be in format X.Y.Z-izgw-core (e.g., 2.4.0-izgw-core)"
+          echo "Error: Release version must be in format X.Y.Z-izgw-core (e.g., 2.4.0-izgw-core)"
           exit 1
         fi
         if [[ ! "${{ inputs.next-snapshot-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core\-SNAPSHOT$ ]]; then
-          echo "❌ Error: Next SNAPSHOT version must be in format X.Y.Z-izgw-core-SNAPSHOT (e.g., 2.5.0-izgw-core-SNAPSHOT)"
+          echo "Error: Next SNAPSHOT version must be in format X.Y.Z-izgw-core-SNAPSHOT (e.g., 2.5.0-izgw-core-SNAPSHOT)"
           exit 1
         fi
-        echo "✓ Version format validation passed"
+        echo "Version format validation passed"
 
         # Validate current branch is develop
         CURRENT_BRANCH="${{ github.ref_name }}"
         if [[ "$CURRENT_BRANCH" != "develop" ]]; then
-          echo "❌ Error: Release workflow must be run from 'develop' branch"
+          echo "Error: Release workflow must be run from 'develop' branch"
           echo "Current branch: $CURRENT_BRANCH"
           echo ""
           echo "Please switch to develop branch and try again:"
@@ -80,7 +80,7 @@ jobs:
           echo "  git pull origin develop"
           exit 1
         fi
-        echo "✓ Running from develop branch"
+        echo "Running from develop branch"
 
         # Set release branch name
         RELEASE_BRANCH="release/${{ inputs.release-version }}"
@@ -89,7 +89,7 @@ jobs:
 
         # Check if release branch already exists
         if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
-          echo "❌ Error: Release branch '$RELEASE_BRANCH' already exists"
+          echo "Error: Release branch '$RELEASE_BRANCH' already exists"
           echo ""
           echo "This likely means a previous release attempt failed or is in progress."
           echo "Please either:"
@@ -97,15 +97,15 @@ jobs:
           echo "  2. Or use a different version number"
           exit 1
         fi
-        echo "✓ Release branch does not exist yet"
+        echo "Release branch does not exist yet"
 
         # Check if tag already exists
         if git ls-remote --exit-code --tags origin "v${{ inputs.release-version }}" >/dev/null 2>&1; then
-          echo "❌ Error: Tag 'v${{ inputs.release-version }}' already exists"
+          echo "Error: Tag 'v${{ inputs.release-version }}' already exists"
           echo "This version has already been released. Please use a different version number."
           exit 1
         fi
-        echo "✓ Release tag does not exist yet"
+        echo "Release tag does not exist yet"
 
     - name: Check for SNAPSHOT dependencies
       env:
@@ -116,13 +116,13 @@ jobs:
         SNAPSHOT_DEPS=$(mvn dependency:tree -Dincludes=*:*:*:*:*-SNAPSHOT -DexcludeGroupIds=gov.cdc.izgw -DoutputType=text | grep SNAPSHOT | grep -v "izgw-core" || true)
 
         if [ -n "$SNAPSHOT_DEPS" ]; then
-          echo "❌ ERROR: Found SNAPSHOT dependencies in the project:"
+          echo "ERROR: Found SNAPSHOT dependencies in the project:"
           echo "$SNAPSHOT_DEPS"
           echo ""
           echo "Please update all dependencies to release versions before creating a release."
           exit 1
         else
-          echo "✓ No SNAPSHOT dependencies found (parent BOM and project itself excluded)"
+          echo "No SNAPSHOT dependencies found (parent BOM and project itself excluded)"
         fi
 
     - name: Check if artifact already exists in GitHub Packages
@@ -142,20 +142,20 @@ jobs:
           --jq ".[] | select(.name==\"$VERSION_NUM\") | .name" 2>/dev/null || echo "")
 
         if [ -n "$PACKAGE_EXISTS" ]; then
-          echo "❌ ERROR: Artifact version $VERSION_NUM already exists in GitHub Packages"
+          echo "ERROR: Artifact version $VERSION_NUM already exists in GitHub Packages"
           echo ""
           echo "This likely means a previous release attempt failed after deploying artifacts."
           echo ""
           echo "To clean up and retry the release:"
           echo ""
           echo "1. Delete the package version from GitHub Packages:"
-          echo "   • Via GitHub CLI:"
+          echo "   - Via GitHub CLI:"
           echo "     VERSION_ID=\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"$VERSION_NUM\") | .id')"
           echo "     gh api --method DELETE /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/\$VERSION_ID"
           echo ""
-          echo "   • Via GitHub UI:"
+          echo "   - Via GitHub UI:"
           echo "     https://github.com/orgs/IZGateway/packages?repo_name=izgw-core"
-          echo "     → Select 'izgw-core' package → Find version $VERSION_NUM → Delete"
+          echo "     Select 'izgw-core' package, find version $VERSION_NUM, and delete"
           echo ""
           echo "2. Delete the release branch if it was created:"
           echo "   git push origin --delete release/${{ inputs.release-version }}"
@@ -169,14 +169,14 @@ jobs:
           exit 1
         fi
 
-        echo "✓ Artifact does not exist in GitHub Packages yet"
+        echo "Artifact does not exist in GitHub Packages yet"
 
     - name: Create release branch
       run: |
         echo "Creating release branch: ${{ steps.validate.outputs.release_branch }}"
         git checkout -b "${{ steps.validate.outputs.release_branch }}"
         git push origin "${{ steps.validate.outputs.release_branch }}"
-        echo "✓ Release branch created and pushed"
+        echo "Release branch created and pushed"
 
     - name: Update RELEASE_NOTES.md
       env:
@@ -199,7 +199,7 @@ jobs:
 
         # Check if we found any PRs
         if [ -z "$PR_CHANGES" ]; then
-          echo "⚠️  No merged PRs found. Using commit messages as fallback."
+          echo "WARNING: No merged PRs found. Using commit messages as fallback."
           if [ -z "$PREVIOUS_TAG" ]; then
             PR_CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges)
           else
@@ -241,7 +241,7 @@ jobs:
 
         git add RELEASE_NOTES.md
         git commit -m "docs: update RELEASE_NOTES.md for release ${{ inputs.release-version }}"
-        echo "✓ RELEASE_NOTES.md updated"
+        echo "RELEASE_NOTES.md updated"
 
     - name: Set release version
       env:
@@ -252,7 +252,7 @@ jobs:
         git add pom.xml
         git commit -m "chore: prepare release ${{ inputs.release-version }}"
         git push origin "${{ steps.validate.outputs.release_branch }}"
-        echo "✓ Release version set and committed"
+        echo "Release version set and committed"
 
     - name: Run tests
       if: ${{ !inputs.skip-tests }}
@@ -307,14 +307,14 @@ jobs:
         fi
 
         git push origin main
-        echo "✓ Release branch merged to main"
+        echo "Release branch merged to main"
 
     - name: Create Git tag on main
       run: |
         echo "Creating tag v${{ inputs.release-version }} on main branch..."
         git tag -a "v${{ inputs.release-version }}" -m "Release version ${{ inputs.release-version }}"
         git push origin "v${{ inputs.release-version }}"
-        echo "✓ Tag created on main"
+        echo "Tag created on main"
 
     - name: Deploy to GitHub Packages
       env:
@@ -324,7 +324,7 @@ jobs:
         echo "Deploying to GitHub Packages..."
         echo "Git operations completed successfully - proceeding with artifact deployment"
         mvn -B deploy -DskipTests -DskipDependencyCheck=true
-        echo "✓ Artifacts deployed to GitHub Packages"
+        echo "Artifacts deployed to GitHub Packages"
 
     - name: Generate GitHub Release notes
       id: release-notes
@@ -344,7 +344,7 @@ jobs:
 
         # Fallback to commits if no PRs found
         if [ -z "$PR_CHANGES" ]; then
-          echo "⚠️  No merged PRs found. Using commit messages as fallback."
+          echo "WARNING: No merged PRs found. Using commit messages as fallback."
           if [ -z "$PREVIOUS_TAG" ]; then
             PR_CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges "v${{ inputs.release-version }}")
           else
@@ -425,11 +425,11 @@ jobs:
 
         # Push develop
         git push origin develop
-        echo "✓ Develop branch updated with RELEASE_NOTES and next SNAPSHOT version"
+        echo "Develop branch updated with RELEASE_NOTES and next SNAPSHOT version"
 
     - name: Summary
       run: |
-        echo "## ✅ Release Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "## Release Complete!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Release Details" >> $GITHUB_STEP_SUMMARY
         echo "- **Release version:** ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
@@ -438,22 +438,22 @@ jobs:
         echo "- **Next version:** ${{ inputs.next-snapshot-version }} (on develop)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### What Happened" >> $GITHUB_STEP_SUMMARY
-        echo "1. ✅ Created release branch from develop" >> $GITHUB_STEP_SUMMARY
-        echo "2. ✅ Updated RELEASE_NOTES.md with release notes" >> $GITHUB_STEP_SUMMARY
-        echo "3. ✅ Set version to ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
-        echo "4. ✅ Ran tests and security checks" >> $GITHUB_STEP_SUMMARY
-        echo "5. ✅ Built release artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "6. ✅ Merged release branch to main (auto-resolving conflicts)" >> $GITHUB_STEP_SUMMARY
-        echo "7. ✅ Tagged v${{ inputs.release-version }} on main" >> $GITHUB_STEP_SUMMARY
-        echo "8. ✅ Deployed artifacts to GitHub Packages" >> $GITHUB_STEP_SUMMARY
-        echo "9. ✅ Created GitHub Release" >> $GITHUB_STEP_SUMMARY
-        echo "10. ✅ Updated develop with RELEASE_NOTES and bumped to ${{ inputs.next-snapshot-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "1. Created release branch from develop" >> $GITHUB_STEP_SUMMARY
+        echo "2. Updated RELEASE_NOTES.md with release notes" >> $GITHUB_STEP_SUMMARY
+        echo "3. Set version to ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "4. Ran tests and security checks" >> $GITHUB_STEP_SUMMARY
+        echo "5. Built release artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "6. Merged release branch to main (auto-resolving conflicts)" >> $GITHUB_STEP_SUMMARY
+        echo "7. Tagged v${{ inputs.release-version }} on main" >> $GITHUB_STEP_SUMMARY
+        echo "8. Deployed artifacts to GitHub Packages" >> $GITHUB_STEP_SUMMARY
+        echo "9. Created GitHub Release" >> $GITHUB_STEP_SUMMARY
+        echo "10. Updated develop with RELEASE_NOTES and bumped to ${{ inputs.next-snapshot-version }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-        echo "1. 📦 Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.release-version }})" >> $GITHUB_STEP_SUMMARY
-        echo "2. 📢 **Notify consuming applications (izg-hub, izg-xform) of the new release**" >> $GITHUB_STEP_SUMMARY
-        echo "3. 📋 Review RELEASE_NOTES.md in develop branch" >> $GITHUB_STEP_SUMMARY
-        echo "4. 📚 Update integration documentation if needed" >> $GITHUB_STEP_SUMMARY
+        echo "1. Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.release-version }})" >> $GITHUB_STEP_SUMMARY
+        echo "2. **Notify consuming applications (izg-hub, izg-xform) of the new release**" >> $GITHUB_STEP_SUMMARY
+        echo "3. Review RELEASE_NOTES.md in develop branch" >> $GITHUB_STEP_SUMMARY
+        echo "4. Update integration documentation if needed" >> $GITHUB_STEP_SUMMARY
 
     - name: Cleanup on failure
       if: failure() && inputs.delete-release-branch-on-failure
@@ -479,7 +479,7 @@ jobs:
           if [[ "$LAST_COMMIT_MSG" == *"Merge release branch ${{ steps.validate.outputs.release_branch }}"* ]]; then
             echo "Reverting merge commit on main..."
             git reset --hard HEAD~1
-            git push origin main --force || echo "⚠️  Failed to revert main - manual cleanup may be required"
+            git push origin main --force || echo "WARNING: Failed to revert main - manual cleanup may be required"
           else
             echo "No merge commit found on main (or other commits after it) - skipping revert"
           fi
@@ -509,14 +509,14 @@ jobs:
           gh release delete "v${{ inputs.release-version }}" --yes || true
         fi
 
-        echo "## ❌ Release Failed - Cleaned Up" >> $GITHUB_STEP_SUMMARY
+        echo "## Release Failed - Cleaned Up" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "The release process failed. Attempted cleanup of:" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Git tag (if created)" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Main branch merge commit (if created)" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Release branch (if created)" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ GitHub Packages artifact (if deployed)" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ GitHub Release (if created)" >> $GITHUB_STEP_SUMMARY
+        echo "- Git tag (if created)" >> $GITHUB_STEP_SUMMARY
+        echo "- Main branch merge commit (if created)" >> $GITHUB_STEP_SUMMARY
+        echo "- Release branch (if created)" >> $GITHUB_STEP_SUMMARY
+        echo "- GitHub Packages artifact (if deployed)" >> $GITHUB_STEP_SUMMARY
+        echo "- GitHub Release (if created)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Troubleshooting" >> $GITHUB_STEP_SUMMARY
         echo "1. Review the error logs above" >> $GITHUB_STEP_SUMMARY
@@ -532,7 +532,7 @@ jobs:
     - name: Notify on failure (keep branch)
       if: failure() && !inputs.delete-release-branch-on-failure
       run: |
-        echo "## ❌ Release Failed - Branch Kept" >> $GITHUB_STEP_SUMMARY
+        echo "## Release Failed - Branch Kept" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "The release process failed. The release branch **${{ steps.validate.outputs.release_branch }}** has been kept for investigation." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY

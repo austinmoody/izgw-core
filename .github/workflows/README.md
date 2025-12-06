@@ -37,18 +37,21 @@ This directory contains the GitHub Actions workflows for izgw-core.
 - `skip-tests`: Optional - skip tests (emergency only)
 
 **Process**:
-1. ✅ Validates version formats
-2. ✅ Checks for SNAPSHOT dependencies (fails if found)
-3. ✅ Runs full test suite
-4. ✅ Runs OWASP dependency check
-5. ✅ Updates pom.xml to release version
-6. ✅ Builds and packages artifacts
-7. ✅ Deploys to GitHub Packages
-8. ✅ Creates Git tag (`vX.Y.Z`)
-9. ✅ Generates changelog from commits
-10. ✅ Creates GitHub Release with artifacts
-11. ✅ Bumps version to next SNAPSHOT
-12. ✅ Commits and pushes changes
+1. Validates version formats and prerequisites
+2. Checks for SNAPSHOT dependencies (fails if found, except parent BOM)
+3. Checks if artifact already exists in GitHub Packages
+4. Creates release branch from develop
+5. Updates RELEASE_NOTES.md with release notes from merged PRs
+6. Updates pom.xml to release version
+7. Runs full test suite (unless skip-tests enabled)
+8. Runs OWASP dependency check (unless skip-tests enabled)
+9. Builds and packages artifacts
+10. Merges release branch to main
+11. Creates Git tag (`vX.Y.Z-izgw-core`) on main
+12. Deploys to GitHub Packages
+13. Generates release notes and creates GitHub Release with artifacts
+14. Merges release branch back to develop and bumps version to next SNAPSHOT
+15. Keeps release branch for history
 
 **Usage**:
 ```
@@ -81,19 +84,19 @@ Click: Run workflow
 **Process**:
 
 **First Run** (Creates hotfix branch):
-1. ✅ Validates versions
-2. ✅ Checks base tag exists
-3. ✅ Creates hotfix branch from base tag
-4. ⏸️ Pauses for manual fix application
+1. Validates versions
+2. Checks base tag exists
+3. Creates hotfix branch from base tag
+4. Pauses for manual fix application
 
 **Second Run** (Completes release):
-1. ✅ Checks for SNAPSHOT dependencies
-2. ✅ Runs tests
-3. ✅ Updates version to hotfix version
-4. ✅ Builds and deploys
-5. ✅ Creates Git tag
-6. ✅ Creates GitHub Release
-7. ✅ Merges back to main
+1. Checks for SNAPSHOT dependencies
+2. Runs tests
+3. Updates version to hotfix version
+4. Builds and deploys
+5. Creates Git tag
+6. Creates GitHub Release
+7. Merges back to main
 
 **Usage**:
 ```
@@ -153,25 +156,25 @@ Workflows require the following permissions:
 ## Workflow Best Practices
 
 ### 1. Release Workflow
-- ✅ **DO** run on a clean state (all PRs merged)
-- ✅ **DO** verify tests pass before releasing
-- ✅ **DO** check for SNAPSHOT dependencies
-- ❌ **DON'T** skip tests unless emergency
-- ❌ **DON'T** release with known bugs
+- **DO** run on a clean state (all PRs merged)
+- **DO** verify tests pass before releasing
+- **DO** check for SNAPSHOT dependencies
+- **DON'T** skip tests unless emergency
+- **DON'T** release with known bugs
 
 ### 2. Hotfix Workflow
-- ✅ **DO** use for critical production issues only
-- ✅ **DO** keep changes minimal (single fix)
-- ✅ **DO** cherry-pick to develop branch after
-- ❌ **DON'T** add new features in hotfix
-- ❌ **DON'T** combine multiple fixes
+- **DO** use for critical production issues only
+- **DO** keep changes minimal (single fix)
+- **DO** cherry-pick to develop branch after
+- **DON'T** add new features in hotfix
+- **DON'T** combine multiple fixes
 
 ### 3. Maven CI Workflow
-- ✅ **DO** let it run on all PRs
-- ✅ **DO** fix failing checks before merging
-- ✅ **DO** review dependency check reports
-- ❌ **DON'T** merge with failing tests
-- ❌ **DON'T** ignore security vulnerabilities
+- **DO** let it run on all PRs
+- **DO** fix failing checks before merging
+- **DO** review dependency check reports
+- **DON'T** merge with failing tests
+- **DON'T** ignore security vulnerabilities
 
 ---
 
