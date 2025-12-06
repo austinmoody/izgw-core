@@ -403,9 +403,15 @@ jobs:
       run: |
         echo "Updating develop branch..."
 
-        # Fetch latest develop and checkout cleanly (discarding any local changes from main)
+        # Discard all local changes from main branch (RELEASE_NOTES.md, etc.)
+        echo "Discarding local changes to prepare for develop checkout..."
+        git reset --hard HEAD
+        git clean -fd
+
+        # Fetch latest develop and checkout
         git fetch origin develop
-        git checkout -B develop origin/develop
+        git checkout develop
+        git reset --hard origin/develop
 
         # Merge release branch to get RELEASE_NOTES.md updates
         echo "Merging release branch to develop for RELEASE_NOTES updates..."
