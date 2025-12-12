@@ -184,8 +184,9 @@ jobs:
       run: |
         echo "Generating release note entries from merged PRs..."
 
-        # Get the previous tag
-        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD 2>/dev/null || echo "")
+        # Get the previous tag (most recent tag by version, not by ancestry)
+        # This works even when develop branch doesn't have tags in its commit history
+        PREVIOUS_TAG=$(git tag -l "v*-izgw-core" --sort=-v:refname | head -n 1)
 
         if [ -z "$PREVIOUS_TAG" ]; then
           echo "First release, getting all merge commits"
@@ -332,7 +333,9 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Generating release notes from merged PRs..."
-        PREVIOUS_TAG=$(git describe --tags --abbrev=0 "v${{ inputs.release-version }}"^ 2>/dev/null || echo "")
+        # Get the previous tag (exclude the current release tag since it was just created)
+        # This works even when develop branch doesn't have tags in its commit history
+        PREVIOUS_TAG=$(git tag -l "v*-izgw-core" --sort=-v:refname | grep -v "v${{ inputs.release-version }}" | head -n 1)
 
         if [ -z "$PREVIOUS_TAG" ]; then
           echo "First release, getting all merge commits"
