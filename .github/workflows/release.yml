@@ -170,6 +170,32 @@ jobs:
           echo "No SNAPSHOT dependencies found (parent BOM and project itself excluded)"
         fi
 
+    - name: Run tests
+      if: ${{ !inputs.skip-tests }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COMMON_PASS: ${{ secrets.COMMON_PASS }}
+        ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
+      run: |
+        echo "Running test suite..."
+        mvn -B clean test
+
+    - name: Run OWASP Dependency Check
+      if: ${{ !inputs.skip-tests }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Running OWASP dependency check..."
+        mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
+
+    - name: Upload dependency check report
+      if: ${{ !inputs.skip-tests }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-check-report
+        path: ./target/dependency-check-report.*
+        if-no-files-found: ignore
+
     - name: Create release branch
       run: |
         echo "Creating release branch: ${{ steps.validate.outputs.release_branch }}"
@@ -253,32 +279,6 @@ jobs:
         git commit -m "chore: prepare release ${{ inputs.release-version }}"
         git push origin "${{ steps.validate.outputs.release_branch }}"
         echo "Release version set and committed"
-
-    - name: Run tests
-      if: ${{ !inputs.skip-tests }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COMMON_PASS: ${{ secrets.COMMON_PASS }}
-        ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
-      run: |
-        echo "Running test suite..."
-        mvn -B clean test
-
-    - name: Run OWASP Dependency Check
-      if: ${{ !inputs.skip-tests }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        echo "Running OWASP dependency check..."
-        mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
-
-    - name: Upload dependency check report
-      if: ${{ !inputs.skip-tests }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: dependency-check-report
-        path: ./target/dependency-check-report.*
-        if-no-files-found: ignore
 
     - name: Build and package
       env:
@@ -440,10 +440,10 @@ jobs:
         echo "- **Next version:** ${{ inputs.next-snapshot-version }} (on develop)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### What Happened" >> $GITHUB_STEP_SUMMARY
-        echo "1. Created release branch from develop" >> $GITHUB_STEP_SUMMARY
-        echo "2. Updated RELEASE_NOTES.md with release notes" >> $GITHUB_STEP_SUMMARY
-        echo "3. Set version to ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
-        echo "4. Ran tests and security checks" >> $GITHUB_STEP_SUMMARY
+        echo "1. Ran tests and security checks on develop branch" >> $GITHUB_STEP_SUMMARY
+        echo "2. Created release branch from develop" >> $GITHUB_STEP_SUMMARY
+        echo "3. Updated RELEASE_NOTES.md with release notes" >> $GITHUB_STEP_SUMMARY
+        echo "4. Set version to ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
         echo "5. Built release artifacts" >> $GITHUB_STEP_SUMMARY
         echo "6. Merged release branch to main (auto-resolving conflicts)" >> $GITHUB_STEP_SUMMARY
         echo "7. Tagged v${{ inputs.release-version }} on main" >> $GITHUB_STEP_SUMMARY
