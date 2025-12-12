@@ -55,6 +55,8 @@ jobs:
 
     - name: Validate prerequisites
       id: validate
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Validating release prerequisites..."
 
@@ -107,28 +109,7 @@ jobs:
         fi
         echo "Release tag does not exist yet"
 
-    - name: Check for SNAPSHOT dependencies
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        echo "Checking for SNAPSHOT dependencies..."
-        # Get all SNAPSHOT dependencies except izgw-bom (parent) and the project itself
-        SNAPSHOT_DEPS=$(mvn dependency:tree -Dincludes=*:*:*:*:*-SNAPSHOT -DexcludeGroupIds=gov.cdc.izgw -DoutputType=text | grep SNAPSHOT | grep -v "izgw-core" || true)
-
-        if [ -n "$SNAPSHOT_DEPS" ]; then
-          echo "ERROR: Found SNAPSHOT dependencies in the project:"
-          echo "$SNAPSHOT_DEPS"
-          echo ""
-          echo "Please update all dependencies to release versions before creating a release."
-          exit 1
-        else
-          echo "No SNAPSHOT dependencies found (parent BOM and project itself excluded)"
-        fi
-
-    - name: Check if artifact already exists in GitHub Packages
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
+        # Check if artifact already exists in GitHub Packages
         echo "Checking if artifact already exists in GitHub Packages..."
 
         # Extract version without -izgw-core suffix for artifact path
@@ -170,6 +151,24 @@ jobs:
         fi
 
         echo "Artifact does not exist in GitHub Packages yet"
+
+    - name: Check for SNAPSHOT dependencies
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Checking for SNAPSHOT dependencies..."
+        # Get all SNAPSHOT dependencies except izgw-bom (parent) and the project itself
+        SNAPSHOT_DEPS=$(mvn dependency:tree -Dincludes=*:*:*:*:*-SNAPSHOT -DexcludeGroupIds=gov.cdc.izgw -DoutputType=text | grep SNAPSHOT | grep -v "izgw-core" || true)
+
+        if [ -n "$SNAPSHOT_DEPS" ]; then
+          echo "ERROR: Found SNAPSHOT dependencies in the project:"
+          echo "$SNAPSHOT_DEPS"
+          echo ""
+          echo "Please update all dependencies to release versions before creating a release."
+          exit 1
+        else
+          echo "No SNAPSHOT dependencies found (parent BOM and project itself excluded)"
+        fi
 
     - name: Create release branch
       run: |
