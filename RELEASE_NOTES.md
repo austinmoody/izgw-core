@@ -1,3 +1,10 @@
+## [2.9.0-izgw-core] - 2025-12-12
+
+### Changes
+- refactor: run OWASP scanner and tests on develop before creating rele… ([#24](https://github.com/austinmoody/izgw-core/pull/24))
+- refactor: consolidate artifact existence check into prerequisites val… ([#23](https://github.com/austinmoody/izgw-core/pull/23))
+- fix: use version-sorted tag list instead of git describe for PREVIOUS… ([#22](https://github.com/austinmoody/izgw-core/pull/22))
+
 ## [2.8.0-izgw-core] - 2025-12-06
 
 ### Changes
