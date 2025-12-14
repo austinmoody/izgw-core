@@ -5,7 +5,6 @@ This document describes the release process for the IZ Gateway Core library.
 ## Table of Contents
 - [Overview](#overview)
 - [Release Process](#release-process)
-- [Hotfix Process](#hotfix-process)
 - [Pre-Release Checklist](#pre-release-checklist)
 - [Manual Release (Advanced)](#manual-release-advanced)
 - [Troubleshooting](#troubleshooting)
@@ -25,7 +24,6 @@ izgw-core follows [Semantic Versioning](https://semver.org/):
 - **develop**: Active development, contains unreleased features
 - **main**: Production-ready code, reflects latest release
 - **release/X.Y.Z-izgw-core**: Release preparation branches (kept after release)
-- **hotfix/vX.Y.Z-izgw-core**: Emergency fixes for production releases
 
 ## Release Process
 
@@ -70,43 +68,55 @@ The workflow automatically performs these steps:
 - Verifies no SNAPSHOT dependencies (except parent BOM)
 - Checks if artifact already exists in GitHub Packages
 
-**2. Release Branch Creation**
+**2. Testing Phase** (unless skip-tests is enabled)
+- Runs full test suite (`mvn clean test`)
+- Runs OWASP dependency check with CVSS threshold of 7
+- Uploads dependency check report as artifact
+
+**3. Release Branch Creation**
 - Creates `release/X.Y.Z-izgw-core` branch from `develop`
 - Pushes release branch to origin
 
-**3. Prepare Release (on release branch)**
-- Updates `RELEASE_NOTES.md` with release notes from merged PRs
+**4. Prepare Release** (on release branch)
+- Updates `RELEASE_NOTES.md` with release notes from merged PRs:
+  - Identifies the previous release tag
+  - Extracts merged PR information from git history
+  - Generates changelog with PR titles and links
+  - Falls back to commit messages if no PRs found
+  - Adds new release section with current date
 - Sets version to release version (removes `-SNAPSHOT`)
-- Commits changes: `"chore: prepare release X.Y.Z-izgw-core"`
-- Runs full test suite (unless skip-tests is enabled)
-- Runs OWASP dependency check (unless skip-tests is enabled)
+- Commits changes:
+  - `"docs: update RELEASE_NOTES.md for release X.Y.Z-izgw-core"`
+  - `"chore: prepare release X.Y.Z-izgw-core"`
 
-**4. Build Artifacts**
-- Builds release artifacts with `mvn clean package`
+**5. Build Artifacts**
+- Builds release artifacts with `mvn clean package -DskipTests -DskipDependencyCheck`
 
-**5. Merge to Main**
+**6. Merge to Main**
 - Merges release branch to `main` (no-fast-forward, using theirs strategy for conflicts)
+- Creates `main` branch if this is the first release
+- The `theirs` strategy ensures release branch documentation takes precedence
 - Pushes to main branch
 
-**6. Create Tag**
+**7. Create Tag**
 - Creates tag `vX.Y.Z-izgw-core` on `main` branch
 - Pushes tag to origin
 
-**7. Deploy to GitHub Packages**
-- Deploys artifacts to GitHub Packages with `mvn deploy`
+**8. Deploy to GitHub Packages**
+- Deploys artifacts to GitHub Packages with `mvn deploy -DskipTests -DskipDependencyCheck`
 
-**8. Create GitHub Release**
+**9. Create GitHub Release**
 - Generates release notes from merged PRs
 - Creates GitHub Release with generated notes
 - Attaches JAR and POM artifacts
 
-**9. Update Develop**
+**10. Update Develop**
 - Merges release branch back to `develop` (for RELEASE_NOTES.md updates)
 - Bumps `develop` version to next SNAPSHOT
 - Commits: `"chore: bump version to X.Y.Z-izgw-core-SNAPSHOT"`
 - Pushes `develop`
 
-**10. Keep Release Branch**
+**11. Keep Release Branch**
 - Release branch is **kept** for future reference and traceability
 
 #### Step 3: Post-Release Tasks
@@ -149,83 +159,39 @@ After the workflow completes successfully:
 If the release workflow fails:
 
 **Default Behavior (delete-release-branch-on-failure = true):**
-1. The release branch is automatically deleted
+
+The workflow automatically cleans up:
+- Deletes git tag (if created)
+- Reverts main branch merge commit (if created)
+- Deletes release branch
+- Deletes GitHub Packages artifact (if deployed)
+- Deletes GitHub Release (if created)
+
+After automatic cleanup:
+1. Review the error logs in GitHub Actions
 2. Fix the issues on `develop` branch
 3. Re-run the workflow with the same version numbers
 
 **Keep Branch for Investigation (delete-release-branch-on-failure = false):**
+
+If you disabled automatic cleanup:
 1. The release branch is kept for manual investigation
 2. Investigate the release branch
-3. Delete the branch manually when ready:
+3. Manually clean up as needed:
    ```bash
+   # Delete release branch when ready
    git push origin --delete release/X.Y.Z-izgw-core
+
+   # Delete tag if created
+   git push origin --delete vX.Y.Z-izgw-core
+
+   # Revert main branch merge if needed
+   git checkout main
+   git reset --hard HEAD~1
+   git push origin main --force
    ```
 4. Fix issues on `develop`
 5. Re-run the workflow
-
-## Hotfix Process
-
-Hotfixes are used for emergency patches to production releases without including unreleased features from `develop`.
-
-### When to Use Hotfix
-
-Use hotfix workflow for:
-- Critical security vulnerabilities
-- Production-breaking bugs
-- Data corruption issues
-- Urgent fixes that cannot wait for next release
-
-### Hotfix Steps
-
-#### Step 1: Identify Base Version
-
-Determine which release needs the hotfix (e.g., `2.3.0-izgw-core`)
-
-#### Step 2: Trigger Hotfix Workflow
-
-1. Go to **Actions** → **Hotfix Release** in GitHub
-2. Click **Run workflow**
-3. Fill in the parameters:
-   - **Base version**: The version to hotfix (e.g., `2.3.0-izgw-core`)
-   - **Hotfix version**: The new patch version (e.g., `2.3.1-izgw-core`)
-4. Click **Run workflow**
-
-#### Step 3: Apply Hotfix Changes
-
-The workflow creates a branch from the base tag. On first run:
-
-1. Checkout the hotfix branch:
-   ```bash
-   git fetch origin
-   git checkout hotfix/v2.3.1-izgw-core
-   ```
-
-2. Apply your fix:
-   ```bash
-   # Make your changes
-   git add .
-   git commit -m "fix: critical issue description"
-   git push origin hotfix/v2.3.1-izgw-core
-   ```
-
-#### Step 4: Complete the Hotfix
-
-1. Return to **Actions** → **Hotfix Release**
-2. **Re-run** the workflow with the same parameters
-3. The workflow detects changes and proceeds to:
-   - Run tests
-   - Build and deploy
-   - Create release
-   - Merge back to `main`
-
-#### Step 5: Cherry-pick to Develop (if needed)
-
-If the fix should be in `develop`:
-```bash
-git checkout develop
-git cherry-pick <commit-hash>
-git push origin develop
-```
 
 ## Pre-Release Checklist
 
@@ -390,7 +356,8 @@ Solution:
 1. Verify GITHUB_TOKEN has write:packages permission
 2. Check repository settings allow package publishing
 3. Verify Maven can authenticate to GitHub Packages
-4. Delete failed release branch and retry
+4. If delete-release-branch-on-failure is enabled, cleanup is automatic
+5. Fix the issue and re-run the workflow
 ```
 
 ### Version Conflicts
@@ -411,7 +378,9 @@ git tag -d vX.Y.Z-izgw-core
 ```
 Solution:
 You cannot overwrite a published version in GitHub Packages.
-Bump to the next patch version (e.g., 2.4.1-izgw-core instead of 2.4.0-izgw-core).
+Either:
+1. Delete the package version from GitHub Packages (see workflow error message)
+2. Or bump to the next patch version (e.g., 2.4.1-izgw-core instead of 2.4.0-izgw-core)
 ```
 
 ### Branch Issues
@@ -460,9 +429,9 @@ git push origin develop
 
 8. **Release branches are kept** - Don't delete them, they provide history
 
-9. **Hotfixes should be minimal** - Only include the critical fix
+9. **Review generated RELEASE_NOTES** - Edit manually if needed before merging
 
-10. **Review generated RELEASE_NOTES** - Edit manually if needed before merging
+10. **Use semantic versioning correctly** - Follow the semver specification
 
 ## Workflow Diagram
 
