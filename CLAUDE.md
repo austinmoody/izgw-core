@@ -114,8 +114,7 @@ Centralized health service (`HealthService`) tracks:
 
 ### Release Process
 Use GitHub Actions workflows for releases (see `.github/workflows/README.md`):
-- **Standard Release**: Use `release.yml` workflow (manual trigger)
-- **Hotfix Release**: Use `hotfix.yml` workflow for critical patches
+- **Standard Release**: Use `release.yml` workflow (manual trigger from `develop` branch)
 - **CI/CD**: `maven.yml` runs on pushes to `main`, `develop`, or `Release*` branches
 
 Version format:
