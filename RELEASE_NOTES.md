@@ -1,3 +1,8 @@
+## [2.10.0-izgw-core] - 2025-12-15
+
+### Changes
+- docs: remove hotfix workflow and update documentation ([#25](https://github.com/austinmoody/izgw-core/pull/25))
+
 ## [2.9.0-izgw-core] - 2025-12-12
 
 ### Changes
