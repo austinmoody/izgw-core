@@ -29,101 +29,128 @@ This directory contains the GitHub Actions workflows for izgw-core.
 
 **Trigger**: Manual (`workflow_dispatch`)
 
-**Purpose**: Automated release process for creating stable releases
+**Purpose**: Automated release process for creating stable releases from the `develop` branch
 
 **Required Inputs**:
-- `release-version`: Version to release (e.g., `2.3.0-izgw-core`)
-- `next-snapshot-version`: Next development version (e.g., `2.4.0-izgw-core-SNAPSHOT`)
-- `skip-tests`: Optional - skip tests (emergency only)
+- `release-version`: Version to release (format: `X.Y.Z-izgw-core`, e.g., `2.3.0-izgw-core`)
+- `next-snapshot-version`: Next development version (format: `X.Y.Z-izgw-core-SNAPSHOT`, e.g., `2.4.0-izgw-core-SNAPSHOT`)
 
-**Process**:
-1. Validates version formats and prerequisites
-2. Checks for SNAPSHOT dependencies (fails if found, except parent BOM)
-3. Checks if artifact already exists in GitHub Packages
-4. Creates release branch from develop
-5. Updates RELEASE_NOTES.md with release notes from merged PRs
-6. Updates pom.xml to release version
-7. Runs full test suite (unless skip-tests enabled)
-8. Runs OWASP dependency check (unless skip-tests enabled)
-9. Builds and packages artifacts
-10. Merges release branch to main
-11. Creates Git tag (`vX.Y.Z-izgw-core`) on main
-12. Deploys to GitHub Packages
-13. Generates release notes and creates GitHub Release with artifacts
-14. Merges release branch back to develop and bumps version to next SNAPSHOT
-15. Keeps release branch for history
+**Optional Inputs**:
+- `skip-tests`: Skip tests (default: `false`, use only for emergency releases)
+- `delete-release-branch-on-failure`: Delete release branch if workflow fails (default: `true`)
+
+**Process Overview**:
+
+The release workflow automates the entire release process, ensuring consistency and reducing manual errors. It must be run from the `develop` branch.
+
+**Detailed Steps**:
+
+**1. Validation Phase**
+- Validates version formats (X.Y.Z-izgw-core and X.Y.Z-izgw-core-SNAPSHOT)
+- Confirms running from `develop` branch
+- Checks that release branch doesn't already exist
+- Checks that tag doesn't already exist
+- Verifies artifact doesn't exist in GitHub Packages
+- Checks for SNAPSHOT dependencies (fails if found, except izgw-bom parent)
+
+**2. Testing Phase** (unless skip-tests enabled)
+- Runs full test suite (`mvn clean test`)
+- Runs OWASP dependency check with CVSS threshold of 7
+- Uploads dependency check report as artifact
+
+**3. Release Branch Creation**
+- Creates `release/X.Y.Z-izgw-core` branch from `develop`
+- Pushes release branch to origin
+
+**4. Release Preparation** (on release branch)
+- Updates `RELEASE_NOTES.md`:
+  - Identifies previous release tag
+  - Extracts merged PR information from git history
+  - Generates changelog with PR titles and links
+  - Falls back to commit messages if no PRs found
+  - Adds new release section with current date
+- Sets version to release version (removes `-SNAPSHOT` suffix)
+- Commits changes: `"docs: update RELEASE_NOTES.md for release X.Y.Z-izgw-core"` and `"chore: prepare release X.Y.Z-izgw-core"`
+- Pushes commits to release branch
+
+**5. Build Artifacts**
+- Builds release artifacts: `mvn clean package -DskipTests -DskipDependencyCheck`
+
+**6. Merge to Main**
+- Fetches and checks out `main` branch (creates it if this is the first release)
+- Merges release branch using no-fast-forward merge with theirs strategy for conflicts
+  - The `theirs` strategy ensures release branch documentation (like RELEASE_NOTES.md) takes precedence
+- Pushes merged changes to `main`
+
+**7. Create Git Tag**
+- Creates annotated tag `vX.Y.Z-izgw-core` on `main` branch
+- Pushes tag to origin
+
+**8. Deploy to GitHub Packages**
+- Deploys artifacts to GitHub Packages: `mvn deploy -DskipTests -DskipDependencyCheck`
+- Artifacts include JAR and POM files
+
+**9. Create GitHub Release**
+- Generates release notes from merged PRs between previous tag and current release
+- Creates GitHub Release with:
+  - Tag: `vX.Y.Z-izgw-core`
+  - Title: `IZ Gateway Core vX.Y.Z-izgw-core`
+  - Release notes including changes and installation instructions
+  - Attached artifacts (JAR and POM files)
+- Enables auto-generated release notes as well
+
+**10. Update Develop Branch**
+- Discards any local changes from main branch context
+- Checks out fresh `develop` branch
+- Merges release branch to `develop` (to bring in RELEASE_NOTES.md updates)
+- Bumps version to next SNAPSHOT version
+- Commits: `"chore: bump version to X.Y.Z-izgw-core-SNAPSHOT"`
+- Pushes updated `develop` branch
+
+**11. Keep Release Branch**
+- Release branch is **kept** for historical reference and traceability
+
+**Failure Handling**:
+
+If `delete-release-branch-on-failure` is `true` (default):
+- Automatically cleans up on failure:
+  - Deletes git tag (if created)
+  - Reverts main branch merge commit (if created)
+  - Deletes release branch
+  - Deletes GitHub Packages artifact (if deployed)
+  - Deletes GitHub Release (if created)
+- Provides troubleshooting summary
+
+If `delete-release-branch-on-failure` is `false`:
+- Keeps release branch for investigation
+- Provides manual cleanup instructions
 
 **Usage**:
 ```
 Go to Actions → Release → Run workflow
-Enter: release-version: 2.3.0-izgw-core
-Enter: next-snapshot-version: 2.4.0-izgw-core-SNAPSHOT
+Select branch: develop
+Enter release-version: 2.3.0-izgw-core
+Enter next-snapshot-version: 2.4.0-izgw-core-SNAPSHOT
+Leave skip-tests unchecked
+Leave delete-release-branch-on-failure checked
 Click: Run workflow
 ```
 
 **Outputs**:
-- Git tag (e.g., `v2.3.0-izgw-core`)
-- GitHub Release with release notes
-- Artifacts in GitHub Packages
-- Updated pom.xml with next SNAPSHOT version
+- Git tag: `v2.3.0-izgw-core` on `main` branch
+- GitHub Release with release notes and artifacts
+- Artifacts deployed to GitHub Packages
+- Release branch: `release/2.3.0-izgw-core` (kept)
+- Updated `develop` branch with next SNAPSHOT version
+- Updated `RELEASE_NOTES.md` in both `main` and `develop`
 
-**See**: [RELEASING.md](../../RELEASING.md) for detailed instructions
+**Post-Release Actions**:
+1. Review the GitHub Release
+2. **Notify consuming applications** (izg-hub, izg-xform) of the new release
+3. Review RELEASE_NOTES.md in develop branch
+4. Update integration documentation if needed
 
----
-
-### 3. Hotfix Release (`hotfix.yml`)
-
-**Trigger**: Manual (`workflow_dispatch`)
-
-**Purpose**: Emergency patch releases for production issues
-
-**Required Inputs**:
-- `base-version`: Version to hotfix (e.g., `2.3.0-izgw-core`)
-- `hotfix-version`: New patch version (e.g., `2.3.1-izgw-core`)
-
-**Process**:
-
-**First Run** (Creates hotfix branch):
-1. Validates versions
-2. Checks base tag exists
-3. Creates hotfix branch from base tag
-4. Pauses for manual fix application
-
-**Second Run** (Completes release):
-1. Checks for SNAPSHOT dependencies
-2. Runs tests
-3. Updates version to hotfix version
-4. Builds and deploys
-5. Creates Git tag
-6. Creates GitHub Release
-7. Merges back to main
-
-**Usage**:
-```
-# First run - create hotfix branch
-Go to Actions → Hotfix Release → Run workflow
-Enter: base-version: 2.3.0-izgw-core
-Enter: hotfix-version: 2.3.1-izgw-core
-Click: Run workflow
-
-# Apply your fix
-git checkout hotfix/v2.3.1-izgw-core
-# Make changes
-git add .
-git commit -m "fix: critical issue"
-git push origin hotfix/v2.3.1-izgw-core
-
-# Second run - complete release
-Go to Actions → Hotfix Release → Run workflow (same inputs)
-```
-
-**Validation**:
-- Hotfix must be same major.minor as base (2.3.x only)
-- Hotfix patch must be greater than base patch
-- Base tag must exist
-- Both versions must include `-izgw-core` suffix
-
-**See**: [RELEASING.md](../../RELEASING.md#hotfix-process) for detailed instructions
+**See**: [RELEASING.md](../../RELEASING.md) for detailed release instructions and best practices
 
 ---
 
@@ -156,20 +183,16 @@ Workflows require the following permissions:
 ## Workflow Best Practices
 
 ### 1. Release Workflow
-- **DO** run on a clean state (all PRs merged)
+- **DO** run on a clean state (all PRs merged to develop)
+- **DO** run from the `develop` branch only
 - **DO** verify tests pass before releasing
-- **DO** check for SNAPSHOT dependencies
-- **DON'T** skip tests unless emergency
+- **DO** check for SNAPSHOT dependencies before releasing
+- **DO** use semantic versioning correctly
+- **DON'T** skip tests unless it's an emergency
 - **DON'T** release with known bugs
+- **DON'T** release with SNAPSHOT dependencies
 
-### 2. Hotfix Workflow
-- **DO** use for critical production issues only
-- **DO** keep changes minimal (single fix)
-- **DO** cherry-pick to develop branch after
-- **DON'T** add new features in hotfix
-- **DON'T** combine multiple fixes
-
-### 3. Maven CI Workflow
+### 2. Maven CI Workflow
 - **DO** let it run on all PRs
 - **DO** fix failing checks before merging
 - **DO** review dependency check reports
@@ -180,35 +203,54 @@ Workflows require the following permissions:
 
 ## Troubleshooting
 
-### Workflow Failed - Authentication Error
+### Workflow Failed - Wrong Branch
 ```
-Error: Failed to deploy to GitHub Packages
+Error: Release workflow must be run from 'develop' branch
 ```
-**Solution**: Check GITHUB_TOKEN permissions and Maven settings configuration
+**Solution**: In GitHub Actions UI, select `develop` from the branch dropdown before running the workflow
 
 ### Workflow Failed - SNAPSHOT Dependencies
 ```
 Error: Found SNAPSHOT dependencies
 ```
-**Solution**: Update all dependencies to release versions in pom.xml
+**Solution**: Update all dependencies to release versions in pom.xml (except izgw-bom parent)
 
 ### Workflow Failed - Tests
 ```
 Error: Tests failed
 ```
-**Solution**: Fix failing tests on the branch, push changes, re-run workflow
+**Solution**: Fix failing tests on the develop branch, push changes, re-run workflow
 
 ### Tag Already Exists
 ```
 Error: Tag v2.3.0-izgw-core already exists
 ```
-**Solution**: Use a different version number or delete the existing tag (with caution)
+**Solution**: Use a different version number or delete the existing tag (with extreme caution)
+
+### Artifact Already Exists
+```
+Error: Artifact version already exists in GitHub Packages
+```
+**Solution**:
+1. Delete the package version from GitHub Packages (see workflow error message for commands)
+2. Or use a different version number
 
 ### Version Validation Failed
 ```
 Error: Version must be in format X.Y.Z-izgw-core
 ```
-**Solution**: Ensure version follows the required format (e.g., 2.3.0-izgw-core for releases, 2.3.1-izgw-core for hotfixes)
+**Solution**: Ensure version follows the required format:
+- Release: `2.3.0-izgw-core` (no SNAPSHOT)
+- Next SNAPSHOT: `2.4.0-izgw-core-SNAPSHOT`
+
+### Authentication Error
+```
+Error: Failed to deploy to GitHub Packages
+```
+**Solution**:
+1. Check GITHUB_TOKEN permissions in repository settings
+2. Verify Maven settings configuration
+3. Ensure GitHub Packages is enabled for the repository
 
 ---
 
@@ -245,6 +287,7 @@ Workflows use these GitHub Actions:
 - [Maven GitHub Packages](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-apache-maven-registry)
 - [Semantic Versioning](https://semver.org/)
 - [Keep a Changelog](https://keepachangelog.com/)
+- [RELEASING.md](../../RELEASING.md) - Detailed release guide
 
 ---
 
