@@ -203,7 +203,7 @@ jobs:
         git push origin "${{ steps.validate.outputs.release_branch }}"
         echo "Release branch created and pushed"
 
-    - name: Update RELEASE_NOTES.md
+    - name: Generate release notes from PRs
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -232,6 +232,19 @@ jobs:
             PR_CHANGES=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
           fi
         fi
+
+        # Save PR changes to file for reuse in both RELEASE_NOTES.md and GitHub Release
+        echo "$PR_CHANGES" > PR_CHANGES.txt
+        echo "Release notes generated and saved to PR_CHANGES.txt"
+
+    - name: Update RELEASE_NOTES.md
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Updating RELEASE_NOTES.md with generated release notes..."
+
+        # Read pre-generated PR changes
+        PR_CHANGES=$(cat PR_CHANGES.txt)
 
         # Get current date
         RELEASE_DATE=$(date +%Y-%m-%d)
@@ -326,36 +339,16 @@ jobs:
         mvn -B deploy -DskipTests -DskipDependencyCheck=true
         echo "Artifacts deployed to GitHub Packages"
 
-    - name: Generate GitHub Release notes
+    - name: Generate GitHub Release body
       id: release-notes
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Generating release notes from merged PRs..."
-        # Get the previous tag (exclude the current release tag since it was just created)
-        # This works even when develop branch doesn't have tags in its commit history
-        PREVIOUS_TAG=$(git tag -l "v*-izgw-core" --sort=-v:refname | grep -v "v${{ inputs.release-version }}" | head -n 1)
+        echo "Creating GitHub Release body from pre-generated release notes..."
 
-        if [ -z "$PREVIOUS_TAG" ]; then
-          echo "First release, getting all merge commits"
-          PR_CHANGES=$(git log --merges --oneline "v${{ inputs.release-version }}" | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
-        else
-          echo "Generating release notes from $PREVIOUS_TAG to v${{ inputs.release-version }}"
-          PR_CHANGES=$(git log ${PREVIOUS_TAG}..v${{ inputs.release-version }} --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
-        fi
-
-        # Fallback to commits if no PRs found
-        if [ -z "$PR_CHANGES" ]; then
-          echo "WARNING: No merged PRs found. Using commit messages as fallback."
-          if [ -z "$PREVIOUS_TAG" ]; then
-            PR_CHANGES=$(git log --pretty=format:"- %s (%h)" --no-merges "v${{ inputs.release-version }}")
-          else
-            PR_CHANGES=$(git log ${PREVIOUS_TAG}..v${{ inputs.release-version }} --pretty=format:"- %s (%h)" --no-merges)
-          fi
-        fi
+        # Read pre-generated PR changes
+        PR_CHANGES=$(cat PR_CHANGES.txt)
 
         # Save release notes to file for GitHub Release
-        cat << EOF > RELEASE_NOTES.md
+        cat << EOF > GITHUB_RELEASE_BODY.md
         # Release ${{ inputs.release-version }}
 
         ## Changes
@@ -385,16 +378,17 @@ jobs:
         </repositories>
         \`\`\`
         EOF
+        echo "GitHub Release body created"
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ inputs.release-version }}
         name: IZ Gateway Core v${{ inputs.release-version }}
-        body_path: RELEASE_NOTES.md
+        body_path: GITHUB_RELEASE_BODY.md
         draft: false
         prerelease: false
-        generate_release_notes: true
+        generate_release_notes: false
         files: |
           target/*.jar
           target/*.pom
