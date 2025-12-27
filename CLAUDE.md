@@ -125,8 +125,8 @@ See `RELEASING.md` for detailed release procedures.
 
 ### Version Naming Conventions
 - Working branches: `<major>.<minor>.<patch>-IGDD-<ticket#>_<ticket-title>-SNAPSHOT`
-- Release branch: `<major>.<minor>.<patch>-izgw-core-SNAPSHOT`
-- Main branch: `<major>.<minor>.<patch>-izgw-core-RELEASE`
+- Release branch: `<major>.<minor>.<patch>-SNAPSHOT`
+- Main branch: `<major>.<minor>.<patch>`
 
 ### Code Standards
 - **Java 17** with Lombok for reducing boilerplate

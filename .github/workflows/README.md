@@ -129,8 +129,7 @@ If `delete-release-branch-on-failure` is `false`:
 ```
 Go to Actions → Release → Run workflow
 Select branch: develop
-Enter release-version: 2.3.0-izgw-core
-Enter next-snapshot-version: 2.4.0-izgw-core-SNAPSHOT
+Enter release-version: 2.3.0Enter next-snapshot-version: 2.4.0-izgw-core-SNAPSHOT
 Leave skip-tests unchecked
 Leave delete-release-branch-on-failure checked
 Click: Run workflow
@@ -237,8 +236,7 @@ Error: Artifact version already exists in GitHub Packages
 
 ### Version Validation Failed
 ```
-Error: Version must be in format X.Y.Z-izgw-core
-```
+Error: Version must be in format X.Y.Z```
 **Solution**: Ensure version follows the required format:
 - Release: `2.3.0-izgw-core` (no SNAPSHOT)
 - Next SNAPSHOT: `2.4.0-izgw-core-SNAPSHOT`
