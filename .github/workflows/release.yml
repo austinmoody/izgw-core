@@ -154,19 +154,30 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Checking for SNAPSHOT dependencies..."
-        # Get all SNAPSHOT dependencies except izgw-bom (parent BOM)
-        # Using dependency:list which excludes the project itself
-        SNAPSHOT_DEPS=$(mvn dependency:list | grep SNAPSHOT | grep -v "izgw-bom" || true)
 
+        # Check regular dependencies (no filter needed - project itself is excluded)
+        SNAPSHOT_DEPS=$(mvn dependency:list | grep SNAPSHOT || true)
+
+        # Check parent POM version separately (not included in dependency:list)
+        PARENT_VERSION=$(mvn help:evaluate -Dexpression=project.parent.version -q -DforceStdout)
+        if [[ "$PARENT_VERSION" == *"SNAPSHOT"* ]]; then
+          echo "ERROR: Parent POM is a SNAPSHOT version: $PARENT_VERSION"
+          echo ""
+          echo "Please release izgw-bom first before releasing izgw-core."
+          exit 1
+        fi
+        echo "Parent POM version is a release version: $PARENT_VERSION"
+
+        # Check if any regular dependencies are SNAPSHOT
         if [ -n "$SNAPSHOT_DEPS" ]; then
           echo "ERROR: Found SNAPSHOT dependencies in the project:"
           echo "$SNAPSHOT_DEPS"
           echo ""
           echo "Please update all dependencies to release versions before creating a release."
           exit 1
-        else
-          echo "No SNAPSHOT dependencies found (parent BOM excluded)"
         fi
+
+        echo "No SNAPSHOT dependencies found - ready for release"
 
     - name: Run tests
       if: ${{ !inputs.skip-tests }}
