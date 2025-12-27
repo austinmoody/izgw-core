@@ -1,3 +1,9 @@
+## [2.13.0] - 2025-12-27
+
+### Changes
+- feat: make OWASP dependency check optional in release workflow ([#33](https://github.com/austinmoody/izgw-core/pull/33))
+- chore: restrict release workflow to develop branch only ([#32](https://github.com/austinmoody/izgw-core/pull/32))
+
 ## [2.12.0] - 2025-12-27
 
 ### Changes
