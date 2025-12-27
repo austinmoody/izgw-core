@@ -18,6 +18,11 @@ on:
         required: false
         type: boolean
         default: false
+      skip-owasp-check:
+        description: 'Skip OWASP dependency check'
+        required: false
+        type: boolean
+        default: false
       delete-release-branch-on-failure:
         description: 'Delete release branch if workflow fails'
         required: false
@@ -194,7 +199,7 @@ jobs:
         mvn -B clean test
 
     - name: Run OWASP Dependency Check
-      if: ${{ !inputs.skip-tests }}
+      if: ${{ !inputs.skip-tests && !inputs.skip-owasp-check }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -202,7 +207,7 @@ jobs:
         mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
 
     - name: Upload dependency check report
-      if: ${{ !inputs.skip-tests }}
+      if: ${{ !inputs.skip-tests && !inputs.skip-owasp-check }}
       uses: actions/upload-artifact@v4
       with:
         name: dependency-check-report
@@ -447,7 +452,13 @@ jobs:
         echo "- **Next version:** ${{ inputs.next-snapshot-version }} (on develop)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### What Happened" >> $GITHUB_STEP_SUMMARY
-        echo "1. Ran tests and security checks on develop branch" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ inputs.skip-tests }}" == "true" ]; then
+          echo "1. Skipped tests (emergency release mode)" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ inputs.skip-owasp-check }}" == "true" ]; then
+          echo "1. Ran tests on develop branch (OWASP check skipped)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "1. Ran tests and OWASP security check on develop branch" >> $GITHUB_STEP_SUMMARY
+        fi
         echo "2. Created release branch from develop" >> $GITHUB_STEP_SUMMARY
         echo "3. Updated RELEASE_NOTES.md with release notes" >> $GITHUB_STEP_SUMMARY
         echo "4. Set version to ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
