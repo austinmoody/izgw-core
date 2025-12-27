@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       release-version:
-        description: 'Release version (e.g., 2.4.0-izgw-core)'
+        description: 'Release version (e.g., 2.4.0)'
         required: true
         type: string
       next-snapshot-version:
-        description: 'Next SNAPSHOT version (e.g., 2.5.0-izgw-core-SNAPSHOT)'
+        description: 'Next SNAPSHOT version (e.g., 2.5.0-SNAPSHOT)'
         required: true
         type: string
       skip-tests:
@@ -61,12 +61,12 @@ jobs:
         echo "Validating release prerequisites..."
 
         # Validate version formats
-        if [[ ! "${{ inputs.release-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core$ ]]; then
-          echo "Error: Release version must be in format X.Y.Z-izgw-core (e.g., 2.4.0-izgw-core)"
+        if [[ ! "${{ inputs.release-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Error: Release version must be in format X.Y.Z (e.g., 2.4.0)"
           exit 1
         fi
-        if [[ ! "${{ inputs.next-snapshot-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-izgw\-core\-SNAPSHOT$ ]]; then
-          echo "Error: Next SNAPSHOT version must be in format X.Y.Z-izgw-core-SNAPSHOT (e.g., 2.5.0-izgw-core-SNAPSHOT)"
+        if [[ ! "${{ inputs.next-snapshot-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-SNAPSHOT$ ]]; then
+          echo "Error: Next SNAPSHOT version must be in format X.Y.Z-SNAPSHOT (e.g., 2.5.0-SNAPSHOT)"
           exit 1
         fi
         echo "Version format validation passed"
@@ -112,18 +112,15 @@ jobs:
         # Check if artifact already exists in GitHub Packages
         echo "Checking if artifact already exists in GitHub Packages..."
 
-        # Extract version without -izgw-core suffix for artifact path
-        VERSION_NUM=$(echo "${{ inputs.release-version }}" | sed 's/-izgw-core$//')
-
         # Try to check if the package version exists using GitHub API
         # Note: This checks for the package version, not individual artifacts
         PACKAGE_EXISTS=$(gh api \
           -H "Accept: application/vnd.github+json" \
           "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions" \
-          --jq ".[] | select(.name==\"$VERSION_NUM\") | .name" 2>/dev/null || echo "")
+          --jq ".[] | select(.name==\"${{ inputs.release-version }}\") | .name" 2>/dev/null || echo "")
 
         if [ -n "$PACKAGE_EXISTS" ]; then
-          echo "ERROR: Artifact version $VERSION_NUM already exists in GitHub Packages"
+          echo "ERROR: Artifact version ${{ inputs.release-version }} already exists in GitHub Packages"
           echo ""
           echo "This likely means a previous release attempt failed after deploying artifacts."
           echo ""
@@ -131,12 +128,12 @@ jobs:
           echo ""
           echo "1. Delete the package version from GitHub Packages:"
           echo "   - Via GitHub CLI:"
-          echo "     VERSION_ID=\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"$VERSION_NUM\") | .id')"
+          echo "     VERSION_ID=\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"${{ inputs.release-version }}\") | .id')"
           echo "     gh api --method DELETE /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/\$VERSION_ID"
           echo ""
           echo "   - Via GitHub UI:"
           echo "     https://github.com/orgs/IZGateway/packages?repo_name=izgw-core"
-          echo "     Select 'izgw-core' package, find version $VERSION_NUM, and delete"
+          echo "     Select 'izgw-core' package, find version ${{ inputs.release-version }}, and delete"
           echo ""
           echo "2. Delete the release branch if it was created:"
           echo "   git push origin --delete release/${{ inputs.release-version }}"
@@ -157,18 +154,32 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Checking for SNAPSHOT dependencies..."
-        # Get all SNAPSHOT dependencies except izgw-bom (parent) and the project itself
-        SNAPSHOT_DEPS=$(mvn dependency:tree -Dincludes=*:*:*:*:*-SNAPSHOT -DexcludeGroupIds=gov.cdc.izgw -DoutputType=text | grep SNAPSHOT | grep -v "izgw-core" || true)
 
+        # Check regular dependencies
+        # Get the current version of this project from the pom.xml, we want to filter this out of the dependency:list check
+        POM_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+        SNAPSHOT_DEPS=$(mvn dependency:list | grep -v $POM_VERSION | grep SNAPSHOT || true)
+
+        # Check parent POM version separately (not included in dependency:list)
+        PARENT_VERSION=$(mvn help:evaluate -Dexpression=project.parent.version -q -DforceStdout)
+        if [[ "$PARENT_VERSION" == *"SNAPSHOT"* ]]; then
+          echo "ERROR: Parent POM is a SNAPSHOT version: $PARENT_VERSION"
+          echo ""
+          echo "Please release izgw-bom first before releasing izgw-core."
+          exit 1
+        fi
+        echo "Parent POM version is a release version: $PARENT_VERSION"
+
+        # Check if any regular dependencies are SNAPSHOT
         if [ -n "$SNAPSHOT_DEPS" ]; then
           echo "ERROR: Found SNAPSHOT dependencies in the project:"
           echo "$SNAPSHOT_DEPS"
           echo ""
           echo "Please update all dependencies to release versions before creating a release."
           exit 1
-        else
-          echo "No SNAPSHOT dependencies found (parent BOM and project itself excluded)"
         fi
+
+        echo "No SNAPSHOT dependencies found - ready for release"
 
     - name: Run tests
       if: ${{ !inputs.skip-tests }}
@@ -211,7 +222,7 @@ jobs:
 
         # Get the previous tag (most recent tag by version, not by ancestry)
         # This works even when develop branch doesn't have tags in its commit history
-        PREVIOUS_TAG=$(git tag -l "v*-izgw-core" --sort=-v:refname | head -n 1)
+        PREVIOUS_TAG=$(git tag -l "v*" --sort=-v:refname | head -n 1)
 
         if [ -z "$PREVIOUS_TAG" ]; then
           echo "First release, getting all merge commits"
@@ -488,11 +499,10 @@ jobs:
         fi
 
         # Try to delete artifact from GitHub Packages if it was deployed
-        VERSION_NUM=$(echo "${{ inputs.release-version }}" | sed 's/-izgw-core$//')
         VERSION_ID=$(gh api \
           -H "Accept: application/vnd.github+json" \
           "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions" \
-          --jq ".[] | select(.name==\"$VERSION_NUM\") | .id" 2>/dev/null || echo "")
+          --jq ".[] | select(.name==\"${{ inputs.release-version }}\") | .id" 2>/dev/null || echo "")
 
         if [ -n "$VERSION_ID" ]; then
           echo "Deleting artifact from GitHub Packages (version ID: $VERSION_ID)..."
@@ -550,7 +560,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "4. **GitHub Packages artifact** (if deployed):" >> $GITHUB_STEP_SUMMARY
         echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "   VERSION_ID=\\\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"$(echo "${{ inputs.release-version }}" | sed 's/-izgw-core$//')\") | .id')" >> $GITHUB_STEP_SUMMARY
+        echo "   VERSION_ID=\\\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"${{ inputs.release-version }}\") | .id')" >> $GITHUB_STEP_SUMMARY
         echo "   gh api --method DELETE /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/\\\$VERSION_ID" >> $GITHUB_STEP_SUMMARY
         echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY

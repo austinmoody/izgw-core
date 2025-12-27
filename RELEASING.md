@@ -17,13 +17,13 @@ izgw-core follows [Semantic Versioning](https://semver.org/):
 - **PATCH** version: Bug fixes (backwards-compatible)
 
 **Version Format:**
-- Development: `X.Y.Z-izgw-core-SNAPSHOT` (e.g., `2.4.0-izgw-core-SNAPSHOT`)
-- Release: `X.Y.Z-izgw-core` (e.g., `2.4.0-izgw-core`)
+- Development: `X.Y.Z-SNAPSHOT` (e.g., `2.4.0-SNAPSHOT`)
+- Release: `X.Y.Z` (e.g., `2.4.0`)
 
 **Branch Strategy:**
 - **develop**: Active development, contains unreleased features
 - **main**: Production-ready code, reflects latest release
-- **release/X.Y.Z-izgw-core**: Release preparation branches (kept after release)
+- **release/X.Y.Z**: Release preparation branches (kept after release)
 
 ## Release Process
 
@@ -49,8 +49,8 @@ Before starting a release, ensure:
 
 3. **Fill in the parameters:**
    - **Branch**: Select `develop` (must be develop!)
-   - **Release version**: The version to release (e.g., `2.4.0-izgw-core`)
-   - **Next SNAPSHOT version**: The next development version (e.g., `2.5.0-izgw-core-SNAPSHOT`)
+   - **Release version**: The version to release (e.g., `2.4.0`)
+   - **Next SNAPSHOT version**: The next development version (e.g., `2.5.0-SNAPSHOT`)
    - **Skip tests**: Leave unchecked (only for emergencies)
    - **Delete release branch on failure**: Leave checked (default)
 
@@ -61,7 +61,7 @@ Before starting a release, ensure:
 The workflow automatically performs these steps:
 
 **1. Validation Phase**
-- Validates version format (X.Y.Z-izgw-core)
+- Validates version format (X.Y.Z)
 - Confirms running from `develop` branch
 - Checks release branch doesn't already exist
 - Checks tag doesn't already exist
@@ -74,7 +74,7 @@ The workflow automatically performs these steps:
 - Uploads dependency check report as artifact
 
 **3. Release Branch Creation**
-- Creates `release/X.Y.Z-izgw-core` branch from `develop`
+- Creates `release/X.Y.Z` branch from `develop`
 - Pushes release branch to origin
 
 **4. Prepare Release** (on release branch)
@@ -86,8 +86,8 @@ The workflow automatically performs these steps:
   - Adds new release section with current date
 - Sets version to release version (removes `-SNAPSHOT`)
 - Commits changes:
-  - `"docs: update RELEASE_NOTES.md for release X.Y.Z-izgw-core"`
-  - `"chore: prepare release X.Y.Z-izgw-core"`
+  - `"docs: update RELEASE_NOTES.md for release X.Y.Z"`
+  - `"chore: prepare release X.Y.Z"`
 
 **5. Build Artifacts**
 - Builds release artifacts with `mvn clean package -DskipTests -DskipDependencyCheck`
@@ -99,7 +99,7 @@ The workflow automatically performs these steps:
 - Pushes to main branch
 
 **7. Create Tag**
-- Creates tag `vX.Y.Z-izgw-core` on `main` branch
+- Creates tag `vX.Y.Z` on `main` branch
 - Pushes tag to origin
 
 **8. Deploy to GitHub Packages**
@@ -113,7 +113,7 @@ The workflow automatically performs these steps:
 **10. Update Develop**
 - Merges release branch back to `develop` (for RELEASE_NOTES.md updates)
 - Bumps `develop` version to next SNAPSHOT
-- Commits: `"chore: bump version to X.Y.Z-izgw-core-SNAPSHOT"`
+- Commits: `"chore: bump version to X.Y.Z-SNAPSHOT"`
 - Pushes `develop`
 
 **11. Keep Release Branch**
@@ -145,13 +145,12 @@ After the workflow completes successfully:
    git checkout main
    git pull
    mvn help:evaluate -Dexpression=project.version -q -DforceStdout
-   # Should show: X.Y.Z-izgw-core
-
+   # Should show: X.Y.Z
    # Develop should be at next SNAPSHOT
    git checkout develop
    git pull
    mvn help:evaluate -Dexpression=project.version -q -DforceStdout
-   # Should show: X.Y.Z-izgw-core-SNAPSHOT (next version)
+   # Should show: X.Y.Z-SNAPSHOT (next version)
    ```
 
 ### Release Failure Handling
@@ -180,11 +179,9 @@ If you disabled automatic cleanup:
 3. Manually clean up as needed:
    ```bash
    # Delete release branch when ready
-   git push origin --delete release/X.Y.Z-izgw-core
-
+   git push origin --delete release/X.Y.Z
    # Delete tag if created
-   git push origin --delete vX.Y.Z-izgw-core
-
+   git push origin --delete vX.Y.Z
    # Revert main branch merge if needed
    git checkout main
    git reset --hard HEAD~1
@@ -217,7 +214,7 @@ Before triggering a release:
 - [ ] Release version follows semantic versioning
 - [ ] Version is not already tagged
   ```bash
-  git tag -l "vX.Y.Z-izgw-core"  # Should return nothing
+  git tag -l "vX.Y.Z"  # Should return nothing
   ```
 - [ ] Next SNAPSHOT version is correctly incremented
 
@@ -252,23 +249,21 @@ EOF
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b release/2.4.0-izgw-core
-git push origin release/2.4.0-izgw-core
-```
+git checkout -b release/2.4.0git push origin release/2.4.0```
 
 **2. Update RELEASE_NOTES.md**
 ```bash
 # Manually edit RELEASE_NOTES.md with release notes
 git add RELEASE_NOTES.md
-git commit -m "docs: update RELEASE_NOTES.md for release 2.4.0-izgw-core"
+git commit -m "docs: update RELEASE_NOTES.md for release 2.4.0"
 ```
 
 **3. Set Release Version**
 ```bash
-mvn versions:set -DnewVersion=2.4.0-izgw-core -DgenerateBackupPoms=false
+mvn versions:set -DnewVersion=2.4.0 -DgenerateBackupPoms=false
 git add pom.xml
-git commit -m "chore: prepare release 2.4.0-izgw-core"
-git push origin release/2.4.0-izgw-core
+git commit -m "chore: prepare release 2.4.0"
+git push origin release/2.4.0
 ```
 
 **4. Run Tests and Build**
@@ -287,21 +282,21 @@ mvn deploy -DskipTests
 ```bash
 git checkout main
 git pull origin main
-git merge --no-ff release/2.4.0-izgw-core
+git merge --no-ff release/2.4.0
 git push origin main
 
-git tag -a v2.4.0-izgw-core -m "Release version 2.4.0-izgw-core"
-git push origin v2.4.0-izgw-core
+git tag -a v2.4.0 -m "Release version 2.4.0"
+git push origin v2.4.0
 ```
 
 **7. Update Develop**
 ```bash
 git checkout develop
 git pull origin develop
-git merge --no-ff release/2.4.0-izgw-core
-mvn versions:set -DnewVersion=2.5.0-izgw-core-SNAPSHOT -DgenerateBackupPoms=false
+git merge --no-ff release/2.4.0
+mvn versions:set -DnewVersion=2.5.0-SNAPSHOT -DgenerateBackupPoms=false
 git add pom.xml
-git commit -m "chore: bump version to 2.5.0-izgw-core-SNAPSHOT"
+git commit -m "chore: bump version to 2.5.0-SNAPSHOT"
 git push origin develop
 ```
 
@@ -346,8 +341,7 @@ Solution:
 Solution:
 1. Check if a previous release attempt is in progress
 2. If abandoned, delete the branch:
-   git push origin --delete release/X.Y.Z-izgw-core
-3. Re-run the workflow
+   git push origin --delete release/X.Y.Z3. Re-run the workflow
 ```
 
 **Issue: Deploy to GitHub Packages failed**
@@ -365,12 +359,9 @@ Solution:
 **Issue: Tag already exists**
 ```bash
 # Check if tag exists
-git ls-remote --tags origin | grep vX.Y.Z-izgw-core
-
+git ls-remote --tags origin | grep vX.Y.Z
 # If you need to re-release (use with caution!):
-git push origin --delete refs/tags/vX.Y.Z-izgw-core
-git tag -d vX.Y.Z-izgw-core
-
+git push origin --delete refs/tags/vX.Y.Zgit tag -d vX.Y.Z
 # Then re-run workflow
 ```
 
@@ -380,7 +371,7 @@ Solution:
 You cannot overwrite a published version in GitHub Packages.
 Either:
 1. Delete the package version from GitHub Packages (see workflow error message)
-2. Or bump to the next patch version (e.g., 2.4.1-izgw-core instead of 2.4.0-izgw-core)
+2. Or bump to the next patch version (e.g., 2.4.1 instead of 2.4.0)
 ```
 
 ### Branch Issues
@@ -390,8 +381,7 @@ Either:
 # This shouldn't happen in automated workflow, but if manual merge needed:
 git checkout main
 git pull origin main
-git merge release/X.Y.Z-izgw-core
-# Resolve conflicts
+git merge release/X.Y.Z# Resolve conflicts
 git add .
 git commit -m "merge: resolve conflicts"
 git push origin main
@@ -401,8 +391,7 @@ git push origin main
 ```bash
 git checkout develop
 git pull origin develop
-git merge release/X.Y.Z-izgw-core
-# Resolve conflicts
+git merge release/X.Y.Z# Resolve conflicts
 git add .
 git commit -m "merge: resolve conflicts"
 git push origin develop
@@ -436,20 +425,20 @@ git push origin develop
 ## Workflow Diagram
 
 ```
-develop (2.4.0-izgw-core-SNAPSHOT)
+develop (2.4.0-SNAPSHOT)
    |
    | [Trigger Release Workflow - Validate]
    |
-   +---> release/2.4.0-izgw-core (created)
+   +---> release/2.4.0 (created)
    |       |
    |       | - Update RELEASE_NOTES.md
-   |       | - Set version to 2.4.0-izgw-core
+   |       | - Set version to 2.4.0
    |       | - Run tests & OWASP check
    |       | - Build artifacts
    |       |
    |       +---> main (merge release branch)
    |               |
-   |               +---> tag: v2.4.0-izgw-core
+   |               +---> tag: v2.4.0
    |               |
    |               +---> Deploy to GitHub Packages
    |               |
@@ -457,7 +446,7 @@ develop (2.4.0-izgw-core-SNAPSHOT)
    |
    +---> develop (merge release branch back)
            |
-           +---> Bump to 2.5.0-izgw-core-SNAPSHOT
+           +---> Bump to 2.5.0-SNAPSHOT
 
 (release branch kept for history)
 ```

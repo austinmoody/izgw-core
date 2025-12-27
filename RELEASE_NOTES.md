@@ -1,3 +1,12 @@
+## [2.12.0] - 2025-12-27
+
+### Changes
+- Tweak dependency check for SNAPSHOT to not take into account the current version of this project itself. ([#31](https://github.com/austinmoody/izgw-core/pull/31))
+- fix: check parent POM version in SNAPSHOT dependency validation ([#30](https://github.com/austinmoody/izgw-core/pull/30))
+- fix: update SNAPSHOT dependency check to use dependency:list ([#29](https://github.com/austinmoody/izgw-core/pull/29))
+- docs: update release branch naming to match workflow implementation ([#28](https://github.com/austinmoody/izgw-core/pull/28))
+- refactor: remove -izgw-core suffix from version naming ([#27](https://github.com/austinmoody/izgw-core/pull/27))
+
 ## [2.11.0-izgw-core] - 2025-12-27
 
 ### Changes
