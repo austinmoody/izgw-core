@@ -61,7 +61,7 @@ Before starting a release, ensure:
 The workflow automatically performs these steps:
 
 **1. Validation Phase**
-- Validates version format (X.Y.Z-izgw-core)
+- Validates version format (X.Y.Z)
 - Confirms running from `develop` branch
 - Checks release branch doesn't already exist
 - Checks tag doesn't already exist
@@ -74,7 +74,7 @@ The workflow automatically performs these steps:
 - Uploads dependency check report as artifact
 
 **3. Release Branch Creation**
-- Creates `release/X.Y.Z-izgw-core` branch from `develop`
+- Creates `release/X.Y.Z` branch from `develop`
 - Pushes release branch to origin
 
 **4. Prepare Release** (on release branch)
@@ -86,8 +86,8 @@ The workflow automatically performs these steps:
   - Adds new release section with current date
 - Sets version to release version (removes `-SNAPSHOT`)
 - Commits changes:
-  - `"docs: update RELEASE_NOTES.md for release X.Y.Z-izgw-core"`
-  - `"chore: prepare release X.Y.Z-izgw-core"`
+  - `"docs: update RELEASE_NOTES.md for release X.Y.Z"`
+  - `"chore: prepare release X.Y.Z"`
 
 **5. Build Artifacts**
 - Builds release artifacts with `mvn clean package -DskipTests -DskipDependencyCheck`
@@ -99,7 +99,7 @@ The workflow automatically performs these steps:
 - Pushes to main branch
 
 **7. Create Tag**
-- Creates tag `vX.Y.Z-izgw-core` on `main` branch
+- Creates tag `vX.Y.Z` on `main` branch
 - Pushes tag to origin
 
 **8. Deploy to GitHub Packages**
@@ -113,7 +113,7 @@ The workflow automatically performs these steps:
 **10. Update Develop**
 - Merges release branch back to `develop` (for RELEASE_NOTES.md updates)
 - Bumps `develop` version to next SNAPSHOT
-- Commits: `"chore: bump version to X.Y.Z-izgw-core-SNAPSHOT"`
+- Commits: `"chore: bump version to X.Y.Z-SNAPSHOT"`
 - Pushes `develop`
 
 **11. Keep Release Branch**
@@ -150,7 +150,7 @@ After the workflow completes successfully:
    git checkout develop
    git pull
    mvn help:evaluate -Dexpression=project.version -q -DforceStdout
-   # Should show: X.Y.Z-izgw-core-SNAPSHOT (next version)
+   # Should show: X.Y.Z-SNAPSHOT (next version)
    ```
 
 ### Release Failure Handling
@@ -214,7 +214,7 @@ Before triggering a release:
 - [ ] Release version follows semantic versioning
 - [ ] Version is not already tagged
   ```bash
-  git tag -l "vX.Y.Z-izgw-core"  # Should return nothing
+  git tag -l "vX.Y.Z"  # Should return nothing
   ```
 - [ ] Next SNAPSHOT version is correctly incremented
 
@@ -255,15 +255,16 @@ git checkout -b release/2.4.0git push origin release/2.4.0```
 ```bash
 # Manually edit RELEASE_NOTES.md with release notes
 git add RELEASE_NOTES.md
-git commit -m "docs: update RELEASE_NOTES.md for release 2.4.0-izgw-core"
+git commit -m "docs: update RELEASE_NOTES.md for release 2.4.0"
 ```
 
 **3. Set Release Version**
 ```bash
-mvn versions:set -DnewVersion=2.4.0-izgw-core -DgenerateBackupPoms=false
+mvn versions:set -DnewVersion=2.4.0 -DgenerateBackupPoms=false
 git add pom.xml
-git commit -m "chore: prepare release 2.4.0-izgw-core"
-git push origin release/2.4.0```
+git commit -m "chore: prepare release 2.4.0"
+git push origin release/2.4.0
+```
 
 **4. Run Tests and Build**
 ```bash
@@ -281,18 +282,21 @@ mvn deploy -DskipTests
 ```bash
 git checkout main
 git pull origin main
-git merge --no-ff release/2.4.0git push origin main
+git merge --no-ff release/2.4.0
+git push origin main
 
-git tag -a v2.4.0-izgw-core -m "Release version 2.4.0-izgw-core"
-git push origin v2.4.0```
+git tag -a v2.4.0 -m "Release version 2.4.0"
+git push origin v2.4.0
+```
 
 **7. Update Develop**
 ```bash
 git checkout develop
 git pull origin develop
-git merge --no-ff release/2.4.0mvn versions:set -DnewVersion=2.5.0-izgw-core-SNAPSHOT -DgenerateBackupPoms=false
+git merge --no-ff release/2.4.0
+mvn versions:set -DnewVersion=2.5.0-SNAPSHOT -DgenerateBackupPoms=false
 git add pom.xml
-git commit -m "chore: bump version to 2.5.0-izgw-core-SNAPSHOT"
+git commit -m "chore: bump version to 2.5.0-SNAPSHOT"
 git push origin develop
 ```
 
@@ -367,7 +371,7 @@ Solution:
 You cannot overwrite a published version in GitHub Packages.
 Either:
 1. Delete the package version from GitHub Packages (see workflow error message)
-2. Or bump to the next patch version (e.g., 2.4.1-izgw-core instead of 2.4.0-izgw-core)
+2. Or bump to the next patch version (e.g., 2.4.1 instead of 2.4.0)
 ```
 
 ### Branch Issues
@@ -421,26 +425,28 @@ git push origin develop
 ## Workflow Diagram
 
 ```
-develop (2.4.0-izgw-core-SNAPSHOT)
+develop (2.4.0-SNAPSHOT)
    |
    | [Trigger Release Workflow - Validate]
    |
-   +---> release/2.4.0-izgw-core (created)
+   +---> release/2.4.0 (created)
    |       |
    |       | - Update RELEASE_NOTES.md
-   |       | - Set version to 2.4.0   |       | - Run tests & OWASP check
+   |       | - Set version to 2.4.0
+   |       | - Run tests & OWASP check
    |       | - Build artifacts
    |       |
    |       +---> main (merge release branch)
    |               |
-   |               +---> tag: v2.4.0   |               |
+   |               +---> tag: v2.4.0
+   |               |
    |               +---> Deploy to GitHub Packages
    |               |
    |               +---> GitHub Release (with artifacts)
    |
    +---> develop (merge release branch back)
            |
-           +---> Bump to 2.5.0-izgw-core-SNAPSHOT
+           +---> Bump to 2.5.0-SNAPSHOT
 
 (release branch kept for history)
 ```
