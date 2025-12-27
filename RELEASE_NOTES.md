@@ -1,3 +1,8 @@
+## [2.11.0-izgw-core] - 2025-12-27
+
+### Changes
+- refactor: synchronize release notes between RELEASE_NOTES.md and GitHub Releases ([#26](https://github.com/austinmoody/izgw-core/pull/26))
+
 ## [2.10.0-izgw-core] - 2025-12-15
 
 ### Changes
