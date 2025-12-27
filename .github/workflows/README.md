@@ -32,8 +32,8 @@ This directory contains the GitHub Actions workflows for izgw-core.
 **Purpose**: Automated release process for creating stable releases from the `develop` branch
 
 **Required Inputs**:
-- `release-version`: Version to release (format: `X.Y.Z-izgw-core`, e.g., `2.3.0-izgw-core`)
-- `next-snapshot-version`: Next development version (format: `X.Y.Z-izgw-core-SNAPSHOT`, e.g., `2.4.0-izgw-core-SNAPSHOT`)
+- `release-version`: Version to release (format: `X.Y.Z`, e.g., `2.3.0`)
+- `next-snapshot-version`: Next development version (format: `X.Y.Z-SNAPSHOT`, e.g., `2.4.0-SNAPSHOT`)
 
 **Optional Inputs**:
 - `skip-tests`: Skip tests (default: `false`, use only for emergency releases)
@@ -46,7 +46,7 @@ The release workflow automates the entire release process, ensuring consistency 
 **Detailed Steps**:
 
 **1. Validation Phase**
-- Validates version formats (X.Y.Z-izgw-core and X.Y.Z-izgw-core-SNAPSHOT)
+- Validates version formats (X.Y.Z and X.Y.Z-SNAPSHOT)
 - Confirms running from `develop` branch
 - Checks that release branch doesn't already exist
 - Checks that tag doesn't already exist
@@ -59,7 +59,7 @@ The release workflow automates the entire release process, ensuring consistency 
 - Uploads dependency check report as artifact
 
 **3. Release Branch Creation**
-- Creates `release/X.Y.Z-izgw-core` branch from `develop`
+- Creates `release/X.Y.Z` branch from `develop`
 - Pushes release branch to origin
 
 **4. Release Preparation** (on release branch)
@@ -70,7 +70,7 @@ The release workflow automates the entire release process, ensuring consistency 
   - Falls back to commit messages if no PRs found
   - Adds new release section with current date
 - Sets version to release version (removes `-SNAPSHOT` suffix)
-- Commits changes: `"docs: update RELEASE_NOTES.md for release X.Y.Z-izgw-core"` and `"chore: prepare release X.Y.Z-izgw-core"`
+- Commits changes: `"docs: update RELEASE_NOTES.md for release X.Y.Z"` and `"chore: prepare release X.Y.Z"`
 - Pushes commits to release branch
 
 **5. Build Artifacts**
@@ -83,7 +83,7 @@ The release workflow automates the entire release process, ensuring consistency 
 - Pushes merged changes to `main`
 
 **7. Create Git Tag**
-- Creates annotated tag `vX.Y.Z-izgw-core` on `main` branch
+- Creates annotated tag `vX.Y.Z` on `main` branch
 - Pushes tag to origin
 
 **8. Deploy to GitHub Packages**
@@ -93,8 +93,8 @@ The release workflow automates the entire release process, ensuring consistency 
 **9. Create GitHub Release**
 - Generates release notes from merged PRs between previous tag and current release
 - Creates GitHub Release with:
-  - Tag: `vX.Y.Z-izgw-core`
-  - Title: `IZ Gateway Core vX.Y.Z-izgw-core`
+  - Tag: `vX.Y.Z`
+  - Title: `IZ Gateway Core vX.Y.Z`
   - Release notes including changes and installation instructions
   - Attached artifacts (JAR and POM files)
 - Enables auto-generated release notes as well
@@ -104,7 +104,7 @@ The release workflow automates the entire release process, ensuring consistency 
 - Checks out fresh `develop` branch
 - Merges release branch to `develop` (to bring in RELEASE_NOTES.md updates)
 - Bumps version to next SNAPSHOT version
-- Commits: `"chore: bump version to X.Y.Z-izgw-core-SNAPSHOT"`
+- Commits: `"chore: bump version to X.Y.Z-SNAPSHOT"`
 - Pushes updated `develop` branch
 
 **11. Keep Release Branch**
@@ -129,17 +129,18 @@ If `delete-release-branch-on-failure` is `false`:
 ```
 Go to Actions → Release → Run workflow
 Select branch: develop
-Enter release-version: 2.3.0Enter next-snapshot-version: 2.4.0-izgw-core-SNAPSHOT
+Enter release-version: 2.3.0
+Enter next-snapshot-version: 2.4.0-SNAPSHOT
 Leave skip-tests unchecked
 Leave delete-release-branch-on-failure checked
 Click: Run workflow
 ```
 
 **Outputs**:
-- Git tag: `v2.3.0-izgw-core` on `main` branch
+- Git tag: `v2.3.0` on `main` branch
 - GitHub Release with release notes and artifacts
 - Artifacts deployed to GitHub Packages
-- Release branch: `release/2.3.0-izgw-core` (kept)
+- Release branch: `release/2.3.0` (kept)
 - Updated `develop` branch with next SNAPSHOT version
 - Updated `RELEASE_NOTES.md` in both `main` and `develop`
 
@@ -222,7 +223,7 @@ Error: Tests failed
 
 ### Tag Already Exists
 ```
-Error: Tag v2.3.0-izgw-core already exists
+Error: Tag v2.3.0 already exists
 ```
 **Solution**: Use a different version number or delete the existing tag (with extreme caution)
 
@@ -236,10 +237,11 @@ Error: Artifact version already exists in GitHub Packages
 
 ### Version Validation Failed
 ```
-Error: Version must be in format X.Y.Z```
+Error: Version must be in format X.Y.Z
+```
 **Solution**: Ensure version follows the required format:
-- Release: `2.3.0-izgw-core` (no SNAPSHOT)
-- Next SNAPSHOT: `2.4.0-izgw-core-SNAPSHOT`
+- Release: `2.3.0` (no SNAPSHOT)
+- Next SNAPSHOT: `2.4.0-SNAPSHOT`
 
 ### Authentication Error
 ```
