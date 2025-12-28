@@ -1,3 +1,9 @@
+## [2.14.0] - 2025-12-28
+
+### Changes
+- refactor: extract release logic into reusable workflow ([#35](https://github.com/austinmoody/izgw-core/pull/35))
+- fix: remove invalid 'branches' option from workflow_dispatch ([#34](https://github.com/austinmoody/izgw-core/pull/34))
+
 ## [2.13.0] - 2025-12-27
 
 ### Changes
