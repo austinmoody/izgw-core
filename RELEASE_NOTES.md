@@ -1,3 +1,11 @@
+## [2.16.0] - 2025-12-29
+
+### Changes
+- fix: improve cleanup logging and error handling for failed releases ([#41](https://github.com/austinmoody/izgw-core/pull/41))
+- fix: preserve PR_CHANGES.txt during develop branch update ([#40](https://github.com/austinmoody/izgw-core/pull/40))
+- fix: reorder release workflow to prevent premature GitHub Release cre… ([#39](https://github.com/austinmoody/izgw-core/pull/39))
+- fix: add merge strategy to resolve hotfix-to-develop pom.xml conflicts ([#38](https://github.com/austinmoody/izgw-core/pull/38))
+
 ## [2.15.0] - 2025-12-29
 
 ### Changes
