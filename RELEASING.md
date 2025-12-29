@@ -52,6 +52,7 @@ Before starting a release, ensure:
    - **Release version**: The version to release (e.g., `2.4.0`)
    - **Next SNAPSHOT version**: The next development version (e.g., `2.5.0-SNAPSHOT`)
    - **Skip tests**: Leave unchecked (only for emergencies)
+   - **Skip OWASP check**: Leave unchecked (skips dependency vulnerability check)
    - **Delete release branch on failure**: Leave checked (default)
 
 4. **Click "Run workflow"**
@@ -70,7 +71,7 @@ The workflow automatically performs these steps:
 
 **2. Testing Phase** (unless skip-tests is enabled)
 - Runs full test suite (`mvn clean test`)
-- Runs OWASP dependency check with CVSS threshold of 7
+- Runs OWASP dependency check with CVSS threshold of 7 (unless skip-owasp-check is enabled)
 - Uploads dependency check report as artifact
 
 **3. Release Branch Creation**

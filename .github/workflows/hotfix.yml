@@ -1,0 +1,48 @@
+# Hotfix Release Workflow
+# Run this workflow from a 'hotfix/<version>' branch to create a hotfix release.
+# For standard releases from develop, use the release.yml workflow instead.
+#
+# Hotfix Process:
+# 1. Manually create hotfix branch from main: git checkout -b hotfix/<version> main
+# 2. Developers create fix/<issue> branches from hotfix/<version>
+# 3. PRs are merged back to hotfix/<version>
+# 4. When ready, run this workflow from the hotfix/<version> branch
+
+name: Hotfix Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-version:
+        description: 'Hotfix release version (e.g., 2.14.1)'
+        required: true
+        type: string
+      skip-tests:
+        description: 'Skip tests (use only for emergency releases)'
+        required: false
+        type: boolean
+        default: false
+      skip-owasp-check:
+        description: 'Skip OWASP dependency check'
+        required: false
+        type: boolean
+        default: false
+      delete-release-branch-on-failure:
+        description: 'Delete hotfix branch if workflow fails'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  hotfix:
+    uses: ./.github/workflows/_release-core.yml
+    with:
+      release-version: ${{ inputs.release-version }}
+      skip-tests: ${{ inputs.skip-tests }}
+      skip-owasp-check: ${{ inputs.skip-owasp-check }}
+      delete-release-branch-on-failure: ${{ inputs.delete-release-branch-on-failure }}
+      release-type: hotfix
+    secrets:
+      ACTIONS_KEY: ${{ secrets.ACTIONS_KEY }}
+      COMMON_PASS: ${{ secrets.COMMON_PASS }}
+      ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}

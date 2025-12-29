@@ -1,3 +1,9 @@
+## [2.15.0] - 2025-12-29
+
+### Changes
+- feat: add hotfix release workflow ([#37](https://github.com/austinmoody/izgw-core/pull/37))
+- docs: update release documentation for reusable workflow ([#36](https://github.com/austinmoody/izgw-core/pull/36))
+
 ## [2.14.0] - 2025-12-28
 
 ### Changes
