@@ -402,15 +402,34 @@ jobs:
       run: |
         echo "Updating develop branch..."
 
+        # Preserve workflow artifacts before git operations
+        echo "Preserving workflow artifacts (PR_CHANGES.txt)..."
+        if [ -f "PR_CHANGES.txt" ]; then
+          cp PR_CHANGES.txt /tmp/PR_CHANGES.txt
+          echo "PR_CHANGES.txt preserved"
+        fi
+
         # Discard all local changes from main branch (RELEASE_NOTES.md, etc.)
         echo "Discarding local changes to prepare for develop checkout..."
         git reset --hard HEAD
         git clean -fd
 
+        # Restore workflow artifacts
+        if [ -f "/tmp/PR_CHANGES.txt" ]; then
+          cp /tmp/PR_CHANGES.txt PR_CHANGES.txt
+          echo "PR_CHANGES.txt restored"
+        fi
+
         # Fetch latest develop and checkout
         git fetch origin develop
         git checkout develop
         git reset --hard origin/develop
+
+        # Restore workflow artifacts again after checkout
+        if [ -f "/tmp/PR_CHANGES.txt" ]; then
+          cp /tmp/PR_CHANGES.txt PR_CHANGES.txt
+          echo "PR_CHANGES.txt restored after checkout"
+        fi
 
         # Merge release branch to get RELEASE_NOTES.md updates
         # Use -X ours to prefer develop's version for conflicts (e.g., pom.xml version)
