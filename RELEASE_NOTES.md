@@ -1,3 +1,8 @@
+## [2.15.1] - 2025-12-29
+
+### Changes
+- docs: Added temp document to test hotfix workflow (db87cdd)
+
 ## [2.15.0] - 2025-12-29
 
 ### Changes
