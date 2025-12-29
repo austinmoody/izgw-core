@@ -398,6 +398,40 @@ jobs:
         mvn -B deploy -DskipTests -DskipDependencyCheck=true
         echo "Artifacts deployed to GitHub Packages"
 
+    - name: Update develop branch
+      run: |
+        echo "Updating develop branch..."
+
+        # Discard all local changes from main branch (RELEASE_NOTES.md, etc.)
+        echo "Discarding local changes to prepare for develop checkout..."
+        git reset --hard HEAD
+        git clean -fd
+
+        # Fetch latest develop and checkout
+        git fetch origin develop
+        git checkout develop
+        git reset --hard origin/develop
+
+        # Merge release branch to get RELEASE_NOTES.md updates
+        # Use -X ours to prefer develop's version for conflicts (e.g., pom.xml version)
+        # During hotfix merges, develop may already be working on a newer version
+        echo "Merging release branch to develop for RELEASE_NOTES updates..."
+        git merge --no-ff -X ours "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }} to develop"
+
+        # Bump to next SNAPSHOT version (only for standard releases)
+        if [[ -n "${{ inputs.next-snapshot-version }}" ]]; then
+          echo "Bumping to next SNAPSHOT version: ${{ inputs.next-snapshot-version }}"
+          mvn versions:set -DnewVersion=${{ inputs.next-snapshot-version }} -DgenerateBackupPoms=false
+          git add pom.xml
+          git commit -m "chore: bump version to ${{ inputs.next-snapshot-version }}"
+        else
+          echo "No next-snapshot-version specified, skipping version bump on develop"
+        fi
+
+        # Push develop
+        git push origin develop
+        echo "Develop branch updated with RELEASE_NOTES and next SNAPSHOT version"
+
     - name: Generate GitHub Release body
       id: release-notes
       run: |
@@ -454,40 +488,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Update develop branch
-      run: |
-        echo "Updating develop branch..."
-
-        # Discard all local changes from main branch (RELEASE_NOTES.md, etc.)
-        echo "Discarding local changes to prepare for develop checkout..."
-        git reset --hard HEAD
-        git clean -fd
-
-        # Fetch latest develop and checkout
-        git fetch origin develop
-        git checkout develop
-        git reset --hard origin/develop
-
-        # Merge release branch to get RELEASE_NOTES.md updates
-        # Use -X ours to prefer develop's version for conflicts (e.g., pom.xml version)
-        # During hotfix merges, develop may already be working on a newer version
-        echo "Merging release branch to develop for RELEASE_NOTES updates..."
-        git merge --no-ff -X ours "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }} to develop"
-
-        # Bump to next SNAPSHOT version (only for standard releases)
-        if [[ -n "${{ inputs.next-snapshot-version }}" ]]; then
-          echo "Bumping to next SNAPSHOT version: ${{ inputs.next-snapshot-version }}"
-          mvn versions:set -DnewVersion=${{ inputs.next-snapshot-version }} -DgenerateBackupPoms=false
-          git add pom.xml
-          git commit -m "chore: bump version to ${{ inputs.next-snapshot-version }}"
-        else
-          echo "No next-snapshot-version specified, skipping version bump on develop"
-        fi
-
-        # Push develop
-        git push origin develop
-        echo "Develop branch updated with RELEASE_NOTES and next SNAPSHOT version"
-
     - name: Summary
       run: |
         echo "## Release Complete!" >> $GITHUB_STEP_SUMMARY
@@ -520,12 +520,12 @@ jobs:
         echo "6. Merged release branch to main (auto-resolving conflicts)" >> $GITHUB_STEP_SUMMARY
         echo "7. Tagged v${{ inputs.release-version }} on main" >> $GITHUB_STEP_SUMMARY
         echo "8. Deployed artifacts to GitHub Packages" >> $GITHUB_STEP_SUMMARY
-        echo "9. Created GitHub Release" >> $GITHUB_STEP_SUMMARY
         if [[ -n "${{ inputs.next-snapshot-version }}" ]]; then
-          echo "10. Updated develop with RELEASE_NOTES and bumped to ${{ inputs.next-snapshot-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "9. Updated develop with RELEASE_NOTES and bumped to ${{ inputs.next-snapshot-version }}" >> $GITHUB_STEP_SUMMARY
         else
-          echo "10. Merged release notes back to develop" >> $GITHUB_STEP_SUMMARY
+          echo "9. Merged release notes back to develop" >> $GITHUB_STEP_SUMMARY
         fi
+        echo "10. Created GitHub Release" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
         echo "1. Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.release-version }})" >> $GITHUB_STEP_SUMMARY
