@@ -5,6 +5,8 @@ This document describes the release process for the IZ Gateway Core library.
 ## Table of Contents
 - [Overview](#overview)
 - [Release Process](#release-process)
+  - [Automated Release (Recommended)](#automated-release-recommended)
+  - [Hotfix Release (For Production Patches)](#hotfix-release-for-production-patches)
 - [Pre-Release Checklist](#pre-release-checklist)
 - [Manual Release (Advanced)](#manual-release-advanced)
 - [Troubleshooting](#troubleshooting)
@@ -23,7 +25,8 @@ izgw-core follows [Semantic Versioning](https://semver.org/):
 **Branch Strategy:**
 - **develop**: Active development, contains unreleased features
 - **main**: Production-ready code, reflects latest release
-- **release/X.Y.Z**: Release preparation branches (kept after release)
+- **release/X.Y.Z**: Release preparation branches created from develop (kept after release)
+- **hotfix/X.Y.Z**: Emergency patch branches created from main (kept after release)
 
 ## Release Process
 
@@ -190,6 +193,200 @@ If you disabled automatic cleanup:
    ```
 4. Fix issues on `develop`
 5. Re-run the workflow
+
+### Hotfix Release (For Production Patches)
+
+Hotfix releases are used to quickly patch critical production issues without waiting for the next scheduled release from develop.
+
+#### When to Use Hotfix vs Standard Release
+
+**Use Hotfix Release when:**
+- Critical bug in production requiring immediate fix
+- Security vulnerability that needs urgent patching
+- Data corruption issue affecting users
+- Service outage or degraded performance issue
+
+**Use Standard Release when:**
+- Normal development cycle
+- Feature releases
+- Non-urgent bug fixes
+- Planned maintenance updates
+
+#### Prerequisites
+
+Before starting a hotfix:
+- Identify the issue in production
+- Determine the hotfix version number (increment patch version from current production release)
+- Have approval for production deployment
+
+#### Step 1: Create Hotfix Branch
+
+Create the hotfix branch from `main` (production):
+
+```bash
+# Fetch latest main
+git fetch origin main
+git checkout main
+git pull origin main
+
+# Create hotfix branch (e.g., hotfix/2.14.1)
+git checkout -b hotfix/2.14.1
+git push -u origin hotfix/2.14.1
+```
+
+#### Step 2: Develop and Test Fixes
+
+Developers create fix branches from the hotfix branch:
+
+```bash
+# From hotfix branch
+git checkout hotfix/2.14.1
+git pull
+
+# Create fix branch
+git checkout -b fix/critical-bug-description
+
+# Make fixes
+# ... code changes ...
+
+# Commit and push
+git add .
+git commit -m "fix: description of the fix"
+git push -u origin fix/critical-bug-description
+
+# Create PR targeting hotfix/2.14.1 (NOT develop!)
+```
+
+**Important:** PRs for hotfix work must target the `hotfix/*` branch, not `develop`.
+
+#### Step 3: Merge All Fixes
+
+1. Review and merge all fix PRs to the hotfix branch
+2. Ensure all tests pass on the hotfix branch
+3. Verify the fixes resolve the production issue
+
+#### Step 4: Trigger the Hotfix Workflow
+
+1. **Go to GitHub Actions**
+   - Navigate to: **Actions** → **Hotfix Release**
+
+2. **Click "Run workflow"**
+
+3. **Fill in the parameters:**
+   - **Branch**: Select your `hotfix/*` branch (e.g., `hotfix/2.14.1`)
+   - **Release version**: The hotfix version (e.g., `2.14.1`)
+   - **Skip tests**: Leave unchecked (only for emergencies)
+   - **Skip OWASP check**: Leave unchecked
+   - **Delete release branch on failure**: Leave unchecked (keep for investigation)
+
+4. **Click "Run workflow"**
+
+#### Step 5: What the Workflow Does
+
+The hotfix workflow performs these steps:
+
+**1. Validation Phase**
+- Validates version format (X.Y.Z)
+- Confirms running from `hotfix/*` branch
+- Checks tag doesn't already exist
+- Verifies no SNAPSHOT dependencies (except parent BOM)
+- Checks if artifact already exists in GitHub Packages
+
+**2. Testing Phase** (unless skip-tests is enabled)
+- Runs full test suite on hotfix branch
+- Runs OWASP dependency check (unless skip-owasp-check is enabled)
+
+**3. Prepare Release** (on hotfix branch)
+- Updates `RELEASE_NOTES.md` with hotfix changes from merged PRs
+- Sets version to release version (e.g., `2.14.1`)
+- Commits changes to hotfix branch
+
+**4. Build Artifacts**
+- Builds release artifacts with `mvn clean package`
+
+**5. Merge to Main**
+- Merges hotfix branch to `main` (no-fast-forward, using theirs strategy)
+- Creates tag `vX.Y.Z` on main branch
+- Pushes to main
+
+**6. Deploy and Release**
+- Deploys artifacts to GitHub Packages
+- Creates GitHub Release with release notes and artifacts
+
+**7. Update Develop Branch**
+- Merges release notes back to `develop`
+- **Does NOT** bump version on develop (key difference from standard releases)
+
+**8. Keep Hotfix Branch**
+- Hotfix branch is **kept** for historical reference
+
+#### Step 6: Post-Hotfix Tasks
+
+After the hotfix workflow completes successfully:
+
+1. **Verify the Hotfix Release**
+   - Check the [GitHub Release](https://github.com/IZGateway/izgw-core/releases)
+   - Verify artifact in [GitHub Packages](https://github.com/IZGateway/izgw-core/packages)
+   - Confirm tag exists on `main` branch
+
+2. **Notify Teams Immediately**
+   - Send **urgent** notification to `izg-hub` team
+   - Send **urgent** notification to `izg-xform` team
+   - Include:
+     - Severity of the issue fixed
+     - Release notes
+     - Upgrade instructions
+     - Deployment timeline
+
+3. **Deploy to Production**
+   - Follow your organization's deployment procedures
+   - Monitor for issues after deployment
+
+4. **Consider Merging to Develop**
+   - Review if the hotfix needs to be manually merged to `develop`
+   - If develop has diverged significantly, the automatic merge may not be sufficient
+   - Create a PR from hotfix branch to develop if needed:
+     ```bash
+     # Create PR to merge hotfix changes to develop
+     git checkout develop
+     git pull origin develop
+     git checkout -b merge/hotfix-2.14.1-to-develop
+     git merge hotfix/2.14.1
+     # Resolve any conflicts
+     git push -u origin merge/hotfix-2.14.1-to-develop
+     # Create PR targeting develop
+     ```
+
+5. **Document the Incident**
+   - Update incident tracking system
+   - Document root cause analysis
+   - Add monitoring or tests to prevent recurrence
+
+#### Key Differences: Hotfix vs Standard Release
+
+| Aspect | Standard Release | Hotfix Release |
+|--------|-----------------|----------------|
+| Source Branch | `develop` | `hotfix/*` (from main) |
+| Creates New Branch | Yes (`release/*`) | No (uses existing `hotfix/*`) |
+| Bump Develop Version | Yes (next SNAPSHOT) | No |
+| Use Case | Scheduled releases | Emergency patches |
+| Default Cleanup on Fail | Delete branch | Keep for investigation |
+| Urgency | Planned | Critical/Urgent |
+
+#### Hotfix Failure Handling
+
+If the hotfix workflow fails:
+
+**Default Behavior (delete-release-branch-on-failure = false):**
+
+The workflow keeps the hotfix branch for investigation. You may need to manually clean up:
+
+1. **Review the error logs** in GitHub Actions
+2. **Fix issues** on the hotfix branch
+3. **Clean up artifacts** if needed (see workflow error messages)
+4. **Re-run the workflow** from the same hotfix branch
+
+For detailed cleanup commands, see the workflow failure summary in GitHub Actions.
 
 ## Pre-Release Checklist
 
@@ -400,6 +597,8 @@ git push origin develop
 
 ## Best Practices
 
+### Standard Releases
+
 1. **Always use the automated workflow** - Ensures consistency and reduces errors
 
 2. **Test before releasing** - Never skip tests in production releases
@@ -423,7 +622,31 @@ git push origin develop
 
 10. **Use semantic versioning correctly** - Follow the semver specification
 
-## Workflow Diagram
+### Hotfix Releases
+
+1. **Use only for critical issues** - Don't use hotfixes for convenience; they're for emergencies
+
+2. **Create from main, not develop** - Hotfix branches must be based on production code
+
+3. **Keep hotfix scope minimal** - Only include fixes for the critical issue
+
+4. **Test thoroughly** - Even urgent fixes need testing; bugs in hotfixes are costly
+
+5. **Target PRs correctly** - All fix PRs must target the `hotfix/*` branch, not develop
+
+6. **Coordinate deployment** - Ensure consuming applications can deploy urgently
+
+7. **Document the incident** - Record root cause, impact, and resolution
+
+8. **Consider merging to develop** - After hotfix, ensure develop gets the fix
+
+9. **Use patch version increments** - Hotfixes increment the patch number (2.14.0 → 2.14.1)
+
+10. **Communicate urgency** - Make clear this is a critical fix requiring immediate attention
+
+## Workflow Diagrams
+
+### Standard Release Workflow
 
 ```
 develop (2.4.0-SNAPSHOT)
@@ -450,6 +673,40 @@ develop (2.4.0-SNAPSHOT)
            +---> Bump to 2.5.0-SNAPSHOT
 
 (release branch kept for history)
+```
+
+### Hotfix Release Workflow
+
+```
+main (2.14.0)
+   |
+   | [Manually create hotfix branch]
+   |
+   +---> hotfix/2.14.1 (created from main)
+           |
+           | - Developers create fix/* branches
+           | - PRs merged to hotfix/2.14.1
+           |
+           | [Trigger Hotfix Workflow - Validate]
+           |
+           | - Update RELEASE_NOTES.md
+           | - Set version to 2.14.1
+           | - Run tests & OWASP check
+           | - Build artifacts
+           |
+           +---> main (merge hotfix branch)
+           |       |
+           |       +---> tag: v2.14.1
+           |       |
+           |       +---> Deploy to GitHub Packages
+           |       |
+           |       +---> GitHub Release (with artifacts)
+           |
+           +---> develop (merge RELEASE_NOTES only)
+                   |
+                   +---> NO version bump (keeps existing SNAPSHOT)
+
+(hotfix branch kept for history)
 ```
 
 ## Additional Resources

@@ -2,7 +2,7 @@
 # This workflow contains the shared release logic used by both standard releases and hotfixes.
 # It should not be triggered directly - use release.yml or hotfix.yml instead.
 
-name: Release Core
+name: Release - Core
 
 on:
   workflow_call:
@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       next-snapshot-version:
-        description: 'Next SNAPSHOT version (e.g., 2.5.0-SNAPSHOT). Required for standard releases.'
+        description: 'Next SNAPSHOT version (e.g., 2.5.0 or 3.0.0) - leave blank to auto-increment minor version. Only used for standard releases.'
         required: false
         type: string
       skip-tests:
@@ -89,17 +89,19 @@ jobs:
         fi
         echo "Version format validation passed"
 
-        # Validate next-snapshot-version for standard releases
-        if [[ "${{ inputs.release-type }}" == "standard" ]]; then
-          if [[ -z "${{ inputs.next-snapshot-version }}" ]]; then
-            echo "Error: next-snapshot-version is required for standard releases"
-            exit 1
-          fi
-          if [[ ! "${{ inputs.next-snapshot-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\-SNAPSHOT$ ]]; then
-            echo "Error: Next SNAPSHOT version must be in format X.Y.Z-SNAPSHOT (e.g., 2.5.0-SNAPSHOT)"
+        # Validate next-snapshot-version format if provided (for standard releases)
+        if [[ "${{ inputs.release-type }}" == "standard" && -n "${{ inputs.next-snapshot-version }}" ]]; then
+          # Allow either X.Y.Z or X.Y.Z-SNAPSHOT format
+          if [[ ! "${{ inputs.next-snapshot-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]]; then
+            echo "Error: Next SNAPSHOT version must be in format X.Y.Z or X.Y.Z-SNAPSHOT (e.g., 2.5.0 or 2.5.0-SNAPSHOT)"
             exit 1
           fi
           echo "Next SNAPSHOT version format validation passed"
+        fi
+
+        # If not provided for standard releases, it will be auto-calculated
+        if [[ "${{ inputs.release-type }}" == "standard" && -z "${{ inputs.next-snapshot-version }}" ]]; then
+          echo "Next SNAPSHOT version not provided - will auto-increment minor version"
         fi
 
         # Validate current branch based on release type
@@ -352,6 +354,33 @@ jobs:
         git push origin "${{ steps.validate.outputs.release_branch }}"
         echo "Release version set and committed"
 
+    - name: Calculate next SNAPSHOT version
+      id: next-version
+      if: ${{ inputs.release-type == 'standard' }}
+      run: |
+        echo "Calculating next SNAPSHOT version..."
+
+        if [[ -z "${{ inputs.next-snapshot-version }}" ]]; then
+          # Auto-calculate by incrementing minor version
+          RELEASE_VERSION="${{ inputs.release-version }}"
+          IFS='.' read -r major minor patch <<< "$RELEASE_VERSION"
+          NEXT_SNAPSHOT="${major}.$((minor + 1)).0-SNAPSHOT"
+          echo "Auto-calculated next snapshot version: $NEXT_SNAPSHOT"
+        else
+          # Use provided value, append -SNAPSHOT if not already present
+          PROVIDED="${{ inputs.next-snapshot-version }}"
+          if [[ "$PROVIDED" == *"-SNAPSHOT" ]]; then
+            NEXT_SNAPSHOT="$PROVIDED"
+            echo "Using provided next snapshot version: $NEXT_SNAPSHOT"
+          else
+            NEXT_SNAPSHOT="${PROVIDED}-SNAPSHOT"
+            echo "Using provided version with -SNAPSHOT appended: $NEXT_SNAPSHOT"
+          fi
+        fi
+
+        echo "next_snapshot_version=$NEXT_SNAPSHOT" >> $GITHUB_OUTPUT
+        echo "Final next SNAPSHOT version: $NEXT_SNAPSHOT"
+
     - name: Build and package
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -438,13 +467,13 @@ jobs:
         git merge --no-ff -X ours "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }} to develop"
 
         # Bump to next SNAPSHOT version (only for standard releases)
-        if [[ -n "${{ inputs.next-snapshot-version }}" ]]; then
-          echo "Bumping to next SNAPSHOT version: ${{ inputs.next-snapshot-version }}"
-          mvn versions:set -DnewVersion=${{ inputs.next-snapshot-version }} -DgenerateBackupPoms=false
+        if [[ -n "${{ steps.next-version.outputs.next_snapshot_version }}" ]]; then
+          echo "Bumping to next SNAPSHOT version: ${{ steps.next-version.outputs.next_snapshot_version }}"
+          mvn versions:set -DnewVersion=${{ steps.next-version.outputs.next_snapshot_version }} -DgenerateBackupPoms=false
           git add pom.xml
-          git commit -m "chore: bump version to ${{ inputs.next-snapshot-version }}"
+          git commit -m "chore: bump version to ${{ steps.next-version.outputs.next_snapshot_version }}"
         else
-          echo "No next-snapshot-version specified, skipping version bump on develop"
+          echo "No next-snapshot-version specified (hotfix release), skipping version bump on develop"
         fi
 
         # Push develop
@@ -516,8 +545,8 @@ jobs:
         echo "- **Release version:** ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Release branch:** ${{ steps.validate.outputs.release_branch }} (kept)" >> $GITHUB_STEP_SUMMARY
         echo "- **Tag:** v${{ inputs.release-version }} (on main)" >> $GITHUB_STEP_SUMMARY
-        if [[ -n "${{ inputs.next-snapshot-version }}" ]]; then
-          echo "- **Next version:** ${{ inputs.next-snapshot-version }} (on develop)" >> $GITHUB_STEP_SUMMARY
+        if [[ -n "${{ steps.next-version.outputs.next_snapshot_version }}" ]]; then
+          echo "- **Next version:** ${{ steps.next-version.outputs.next_snapshot_version }} (on develop)" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### What Happened" >> $GITHUB_STEP_SUMMARY
@@ -539,8 +568,8 @@ jobs:
         echo "6. Merged release branch to main (auto-resolving conflicts)" >> $GITHUB_STEP_SUMMARY
         echo "7. Tagged v${{ inputs.release-version }} on main" >> $GITHUB_STEP_SUMMARY
         echo "8. Deployed artifacts to GitHub Packages" >> $GITHUB_STEP_SUMMARY
-        if [[ -n "${{ inputs.next-snapshot-version }}" ]]; then
-          echo "9. Updated develop with RELEASE_NOTES and bumped to ${{ inputs.next-snapshot-version }}" >> $GITHUB_STEP_SUMMARY
+        if [[ -n "${{ steps.next-version.outputs.next_snapshot_version }}" ]]; then
+          echo "9. Updated develop with RELEASE_NOTES and bumped to ${{ steps.next-version.outputs.next_snapshot_version }}" >> $GITHUB_STEP_SUMMARY
         else
           echo "9. Merged release notes back to develop" >> $GITHUB_STEP_SUMMARY
         fi

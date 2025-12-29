@@ -4,34 +4,13 @@ This directory contains the GitHub Actions workflows for izgw-core.
 
 ## Workflows
 
-### 1. Maven CI (`maven.yml`)
-
-**Trigger**: Push or PR to `Release*`, `main`, or `develop` branches
-
-**Purpose**: Continuous Integration - builds, tests, and validates code changes
-
-**Key Steps**:
-- Sets up JDK 17 and Maven
-- Configures Maven settings with GitHub Packages authentication
-- Runs tests with coverage
-- Runs OWASP dependency check (on main branch)
-- Deploys SNAPSHOT artifacts to GitHub Packages
-- Creates draft releases (on push to main)
-
-**Environment Variables**:
-- `GITHUB_TOKEN`: GitHub authentication
-- `COMMON_PASS`: Common password for tests
-- `ELASTIC_API_KEY`: Elasticsearch API key for tests
-
----
-
 ### 2. Release (`release.yml`)
 
 **Trigger**: Manual (`workflow_dispatch`)
 
 **Purpose**: Automated release process for creating stable releases from the `develop` branch
 
-**Architecture**: This workflow is a thin wrapper that calls the reusable `_release-core.yml` workflow. This design allows future hotfix releases to share the same core logic.
+**Architecture**: This workflow is a thin wrapper that calls the reusable `_release-core.yml` workflow. This design allows hotfix releases to share the same core logic.
 
 **Required Inputs**:
 - `release-version`: Version to release (format: `X.Y.Z`, e.g., `2.3.0`)

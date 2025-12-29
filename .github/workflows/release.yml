@@ -2,7 +2,7 @@
 # Run this workflow from the 'develop' branch to create a standard release.
 # For hotfix releases, use the hotfix.yml workflow instead.
 
-name: Release
+name: Release - Standard
 
 on:
   workflow_dispatch:
@@ -12,8 +12,8 @@ on:
         required: true
         type: string
       next-snapshot-version:
-        description: 'Next SNAPSHOT version (e.g., 2.5.0-SNAPSHOT)'
-        required: true
+        description: 'Next SNAPSHOT version (e.g., 2.5.0 or 3.0.0) - leave blank to auto-increment minor version'
+        required: false
         type: string
       skip-tests:
         description: 'Skip tests (use only for emergency releases)'
