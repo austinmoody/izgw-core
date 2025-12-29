@@ -1,3 +1,8 @@
+## [2.16.1] - 2025-12-29
+
+### Changes
+- docs: update to trigger hotfix attempt (c08fab9)
+
 ## [2.16.0] - 2025-12-29
 
 ### Changes
