@@ -1,3 +1,10 @@
+## [2.17.0] - 2025-12-29
+
+### Changes
+- feat: simplify release workflow versioning ([#44](https://github.com/austinmoody/izgw-core/pull/44))
+- Renamed some of the workflows and tweaked README. ([#43](https://github.com/austinmoody/izgw-core/pull/43))
+- docs: update workflow documentation to fully reflect release and hotf… ([#42](https://github.com/austinmoody/izgw-core/pull/42))
+
 ## [2.16.1] - 2025-12-29
 
 ### Changes
