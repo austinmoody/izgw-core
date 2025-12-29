@@ -2,7 +2,7 @@
 # This workflow contains the shared release logic used by both standard releases and hotfixes.
 # It should not be triggered directly - use release.yml or hotfix.yml instead.
 
-name: Release Core
+name: Release - Core
 
 on:
   workflow_call:

@@ -2,7 +2,7 @@
 # Run this workflow from the 'develop' branch to create a standard release.
 # For hotfix releases, use the hotfix.yml workflow instead.
 
-name: Release
+name: Release - Standard
 
 on:
   workflow_dispatch:
