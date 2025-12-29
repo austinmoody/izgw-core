@@ -1,3 +1,9 @@
+## [2.16.0] - 2025-12-29
+
+### Changes
+- fix: reorder release workflow to prevent premature GitHub Release cre… ([#39](https://github.com/austinmoody/izgw-core/pull/39))
+- fix: add merge strategy to resolve hotfix-to-develop pom.xml conflicts ([#38](https://github.com/austinmoody/izgw-core/pull/38))
+
 ## [2.15.0] - 2025-12-29
 
 ### Changes
