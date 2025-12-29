@@ -115,13 +115,18 @@ Centralized health service (`HealthService`) tracks:
 ### Release Process
 Use GitHub Actions workflows for releases (see `.github/workflows/README.md`):
 - **Standard Release**: Use `release.yml` workflow (manual trigger from `develop` branch)
+  - Creates release branch, merges to main, tags, deploys to GitHub Packages
+  - Updates develop with next SNAPSHOT version
+- **Hotfix Release**: Use `hotfix.yml` workflow (manual trigger from `hotfix/*` branch)
+  - For critical production fixes that can't wait for next standard release
+  - Merges to main, tags, deploys, but does NOT bump develop version
 - **CI/CD**: `maven.yml` runs on pushes to `main`, `develop`, or `Release*` branches
 
 Version format:
 - Development: `X.Y.Z-SNAPSHOT`
 - Release: `X.Y.Z`
 
-See `RELEASING.md` for detailed release procedures.
+See `RELEASING.md` for detailed release procedures and `.github/workflows/README.md` for workflow documentation.
 
 ### Version Naming Conventions
 - Working branches: `<major>.<minor>.<patch>-IGDD-<ticket#>_<ticket-title>-SNAPSHOT`
