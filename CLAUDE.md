@@ -115,6 +115,9 @@ Centralized health service (`HealthService`) tracks:
 ### Release Process
 Use GitHub Actions workflows for releases (see `.github/workflows/README.md`):
 - **Standard Release**: Use `release.yml` workflow (manual trigger from `develop` branch)
+  - Specify release version (e.g., `2.3.0`)
+  - Optionally specify next SNAPSHOT version (e.g., `2.4.0` or `3.0.0`)
+    - If not specified, auto-increments minor version (e.g., `2.3.0` → `2.4.0-SNAPSHOT`)
   - Creates release branch, merges to main, tags, deploys to GitHub Packages
   - Updates develop with next SNAPSHOT version
 - **Hotfix Release**: Use `hotfix.yml` workflow (manual trigger from `hotfix/*` branch)

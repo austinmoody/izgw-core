@@ -14,9 +14,14 @@ This directory contains the GitHub Actions workflows for izgw-core.
 
 **Required Inputs**:
 - `release-version`: Version to release (format: `X.Y.Z`, e.g., `2.3.0`)
-- `next-snapshot-version`: Next development version (format: `X.Y.Z-SNAPSHOT`, e.g., `2.4.0-SNAPSHOT`)
 
 **Optional Inputs**:
+- `next-snapshot-version`: Next development version. Can be:
+  - Left blank to auto-increment minor version (e.g., releasing `2.3.0` → `2.4.0-SNAPSHOT`)
+  - A version number like `2.4.0` or `3.0.0` (workflow appends `-SNAPSHOT`)
+  - A full SNAPSHOT version like `2.4.0-SNAPSHOT`
+
+**Other Optional Inputs**:
 - `skip-tests`: Skip tests (default: `false`, use only for emergency releases)
 - `skip-owasp-check`: Skip OWASP dependency check (default: `false`)
 - `delete-release-branch-on-failure`: Delete release branch if workflow fails (default: `true`)
@@ -85,7 +90,9 @@ The release workflow automates the entire release process, ensuring consistency 
 - Discards any local changes from main branch context
 - Checks out fresh `develop` branch
 - Merges release branch to `develop` (to bring in RELEASE_NOTES.md updates)
-- Bumps version to next SNAPSHOT version
+- Bumps version to next SNAPSHOT version:
+  - If not provided, auto-increments minor version (e.g., `2.3.0` → `2.4.0-SNAPSHOT`)
+  - If provided, uses specified version with `-SNAPSHOT` appended if needed
 - Commits: `"chore: bump version to X.Y.Z-SNAPSHOT"`
 - Pushes updated `develop` branch
 
@@ -107,12 +114,26 @@ If `delete-release-branch-on-failure` is `false`:
 - Keeps release branch for investigation
 - Provides manual cleanup instructions
 
-**Usage**:
+**Usage Examples**:
+
+*Example 1: Auto-increment minor version (most common)*
 ```
 Go to Actions → Release → Run workflow
 Select branch: develop
 Enter release-version: 2.3.0
-Enter next-snapshot-version: 2.4.0-SNAPSHOT
+Leave next-snapshot-version blank (auto-increments to 2.4.0-SNAPSHOT)
+Leave skip-tests unchecked
+Leave skip-owasp-check unchecked
+Leave delete-release-branch-on-failure checked
+Click: Run workflow
+```
+
+*Example 2: Specify custom next version for major release*
+```
+Go to Actions → Release → Run workflow
+Select branch: develop
+Enter release-version: 2.3.0
+Enter next-snapshot-version: 3.0.0 (or 3.0.0-SNAPSHOT)
 Leave skip-tests unchecked
 Leave skip-owasp-check unchecked
 Leave delete-release-branch-on-failure checked
@@ -264,7 +285,9 @@ Click: Run workflow
 
 **Inputs** (passed from caller workflow):
 - `release-version`: Version to release (required)
-- `next-snapshot-version`: Next SNAPSHOT version (required for standard releases)
+- `next-snapshot-version`: Next SNAPSHOT version (optional for standard releases)
+  - If not provided, auto-increments minor version
+  - Can be specified as `X.Y.Z` or `X.Y.Z-SNAPSHOT`
 - `skip-tests`: Skip tests (default: `false`)
 - `skip-owasp-check`: Skip OWASP dependency check (default: `false`)
 - `delete-release-branch-on-failure`: Delete release branch on failure (default: `true`)
