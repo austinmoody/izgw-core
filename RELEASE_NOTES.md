@@ -1,3 +1,9 @@
+## [2.17.1] - 2025-12-29
+
+### Changes
+- docs: update release documentation for simplified version specification (b1732d4)
+- chore: bump version to 2.18.0-SNAPSHOT (c0d3cc0)
+
 ## [2.17.0] - 2025-12-29
 
 ### Changes

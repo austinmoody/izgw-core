@@ -53,7 +53,10 @@ Before starting a release, ensure:
 3. **Fill in the parameters:**
    - **Branch**: Select `develop` (must be develop!)
    - **Release version**: The version to release (e.g., `2.4.0`)
-   - **Next SNAPSHOT version**: The next development version (e.g., `2.5.0-SNAPSHOT`)
+   - **Next SNAPSHOT version** (optional): The next development version. Can be:
+     - Left blank to auto-increment minor version (e.g., releasing `2.4.0` → `2.5.0-SNAPSHOT`)
+     - A version number like `2.5.0` or `3.0.0` (workflow will append `-SNAPSHOT`)
+     - A full SNAPSHOT version like `2.5.0-SNAPSHOT` or `3.0.0-SNAPSHOT`
    - **Skip tests**: Leave unchecked (only for emergencies)
    - **Skip OWASP check**: Leave unchecked (skips dependency vulnerability check)
    - **Delete release branch on failure**: Leave checked (default)
@@ -116,7 +119,9 @@ The workflow automatically performs these steps:
 
 **10. Update Develop**
 - Merges release branch back to `develop` (for RELEASE_NOTES.md updates)
-- Bumps `develop` version to next SNAPSHOT
+- Bumps `develop` version to next SNAPSHOT:
+  - If not provided, auto-increments minor version (e.g., `2.4.0` → `2.5.0-SNAPSHOT`)
+  - If provided, uses specified version with `-SNAPSHOT` appended if needed
 - Commits: `"chore: bump version to X.Y.Z-SNAPSHOT"`
 - Pushes `develop`
 
@@ -414,7 +419,9 @@ Before triggering a release:
   ```bash
   git tag -l "vX.Y.Z"  # Should return nothing
   ```
-- [ ] Next SNAPSHOT version is correctly incremented
+- [ ] Next SNAPSHOT version (if specified) is correctly set
+  - If left blank, minor version will auto-increment (e.g., `2.4.0` → `2.5.0-SNAPSHOT`)
+  - If specified, can be just version number (e.g., `2.5.0`, `3.0.0`) or full SNAPSHOT version
 
 ### Communication
 - [ ] Dependent teams notified of upcoming release
@@ -492,6 +499,7 @@ git push origin v2.4.0
 git checkout develop
 git pull origin develop
 git merge --no-ff release/2.4.0
+# Choose next version (e.g., 2.5.0-SNAPSHOT for minor bump, 3.0.0-SNAPSHOT for major)
 mvn versions:set -DnewVersion=2.5.0-SNAPSHOT -DgenerateBackupPoms=false
 git add pom.xml
 git commit -m "chore: bump version to 2.5.0-SNAPSHOT"
