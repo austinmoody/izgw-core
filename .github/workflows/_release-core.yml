@@ -469,8 +469,10 @@ jobs:
         git reset --hard origin/develop
 
         # Merge release branch to get RELEASE_NOTES.md updates
+        # Use -X ours to prefer develop's version for conflicts (e.g., pom.xml version)
+        # During hotfix merges, develop may already be working on a newer version
         echo "Merging release branch to develop for RELEASE_NOTES updates..."
-        git merge --no-ff "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }} to develop"
+        git merge --no-ff -X ours "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }} to develop"
 
         # Bump to next SNAPSHOT version (only for standard releases)
         if [[ -n "${{ inputs.next-snapshot-version }}" ]]; then
