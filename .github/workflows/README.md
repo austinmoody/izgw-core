@@ -31,12 +31,15 @@ This directory contains the GitHub Actions workflows for izgw-core.
 
 **Purpose**: Automated release process for creating stable releases from the `develop` branch
 
+**Architecture**: This workflow is a thin wrapper that calls the reusable `_release-core.yml` workflow. This design allows future hotfix releases to share the same core logic.
+
 **Required Inputs**:
 - `release-version`: Version to release (format: `X.Y.Z`, e.g., `2.3.0`)
 - `next-snapshot-version`: Next development version (format: `X.Y.Z-SNAPSHOT`, e.g., `2.4.0-SNAPSHOT`)
 
 **Optional Inputs**:
 - `skip-tests`: Skip tests (default: `false`, use only for emergency releases)
+- `skip-owasp-check`: Skip OWASP dependency check (default: `false`)
 - `delete-release-branch-on-failure`: Delete release branch if workflow fails (default: `true`)
 
 **Process Overview**:
@@ -55,7 +58,7 @@ The release workflow automates the entire release process, ensuring consistency 
 
 **2. Testing Phase** (unless skip-tests enabled)
 - Runs full test suite (`mvn clean test`)
-- Runs OWASP dependency check with CVSS threshold of 7
+- Runs OWASP dependency check with CVSS threshold of 7 (unless skip-owasp-check enabled)
 - Uploads dependency check report as artifact
 
 **3. Release Branch Creation**
@@ -132,6 +135,7 @@ Select branch: develop
 Enter release-version: 2.3.0
 Enter next-snapshot-version: 2.4.0-SNAPSHOT
 Leave skip-tests unchecked
+Leave skip-owasp-check unchecked
 Leave delete-release-branch-on-failure checked
 Click: Run workflow
 ```
@@ -151,6 +155,38 @@ Click: Run workflow
 4. Update integration documentation if needed
 
 **See**: [RELEASING.md](../../RELEASING.md) for detailed release instructions and best practices
+
+---
+
+### 3. Release Core (`_release-core.yml`)
+
+**Trigger**: Called by other workflows (`workflow_call`)
+
+**Purpose**: Reusable workflow containing the shared release logic. This workflow should not be triggered directly.
+
+**Design Pattern**: This is a [reusable workflow](https://docs.github.com/en/actions/using-workflows/reusing-workflows) that encapsulates all the core release steps. It accepts parameters from caller workflows like `release.yml` (and future `hotfix.yml`).
+
+**Inputs** (passed from caller workflow):
+- `release-version`: Version to release (required)
+- `next-snapshot-version`: Next SNAPSHOT version (required for standard releases)
+- `skip-tests`: Skip tests (default: `false`)
+- `skip-owasp-check`: Skip OWASP dependency check (default: `false`)
+- `delete-release-branch-on-failure`: Delete release branch on failure (default: `true`)
+- `release-type`: Type of release - `standard` or `hotfix` (default: `standard`)
+
+**Secrets Required**:
+- `ACTIONS_KEY`: SSH key for pushing to protected branches
+- `COMMON_PASS`: Password for test environment
+- `ELASTIC_API_KEY`: Elasticsearch API key
+
+**Key Features**:
+- Parameterized for both standard and hotfix releases
+- Standard releases: Creates release branch from `develop`, requires `next-snapshot-version`
+- Hotfix releases: Uses existing `hotfix/*` branch, `next-snapshot-version` is optional
+- Automatic cleanup on failure (configurable)
+- Generates release notes from merged PRs
+
+**Usage**: Do not call this workflow directly. Use `release.yml` for standard releases.
 
 ---
 
