@@ -38,7 +38,7 @@ The release workflow automates the entire release process, ensuring consistency 
 - Checks that release branch doesn't already exist
 - Checks that tag doesn't already exist
 - Verifies artifact doesn't exist in GitHub Packages
-- Checks for SNAPSHOT dependencies (fails if found, except izgw-bom parent)
+- Checks for SNAPSHOT dependencies (fails if ANY found, including izgw-bom parent)
 
 **2. Testing Phase** (unless skip-tests enabled)
 - Runs full test suite (`mvn clean test`)
@@ -210,7 +210,7 @@ The hotfix workflow follows a similar process to standard releases but with key 
 - Confirms running from a `hotfix/*` branch (not develop)
 - Checks that tag doesn't already exist
 - Verifies artifact doesn't exist in GitHub Packages
-- Checks for SNAPSHOT dependencies (fails if found, except izgw-bom parent)
+- Checks for SNAPSHOT dependencies (fails if ANY found, including izgw-bom parent)
 
 **2. Testing Phase** (unless skip-tests enabled)
 - Runs full test suite on hotfix branch
@@ -368,7 +368,7 @@ Error: Release workflow must be run from 'develop' branch
 ```
 Error: Found SNAPSHOT dependencies
 ```
-**Solution**: Update all dependencies to release versions in pom.xml (except izgw-bom parent)
+**Solution**: Update all dependencies to release versions in pom.xml, including the izgw-bom parent POM
 
 ### Workflow Failed - Tests
 ```
