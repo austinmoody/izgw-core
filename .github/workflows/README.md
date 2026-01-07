@@ -4,7 +4,7 @@ This directory contains the GitHub Actions workflows for izgw-core.
 
 ## Workflows
 
-### 2. Release (`release.yml`)
+### Release (`release.yml`)
 
 **Trigger**: Manual (`workflow_dispatch`)
 
@@ -53,19 +53,19 @@ The release workflow automates the entire release process, ensuring consistency 
 - Updates `RELEASE_NOTES.md`:
   - Identifies previous release tag
   - Extracts merged PR information from git history
-  - Generates changelog with PR titles and links
+  - Generates the changelog with PR titles and links
   - Falls back to commit messages if no PRs found
-  - Adds new release section with current date
-- Sets version to release version (removes `-SNAPSHOT` suffix)
+  - Adds a new release section with the current date
+- Sets the version to the release version (removes `-SNAPSHOT` suffix)
 - Commits changes: `"docs: update RELEASE_NOTES.md for release X.Y.Z"` and `"chore: prepare release X.Y.Z"`
 - Pushes commits to release branch
 
 **5. Build Artifacts**
-- Builds release artifacts: `mvn clean package -DskipTests -DskipDependencyCheck`
+- Builds release artifacts
 
 **6. Merge to Main**
 - Fetches and checks out `main` branch (creates it if this is the first release)
-- Merges release branch using no-fast-forward merge with theirs strategy for conflicts
+- Merges release branch using no-fast-forward merge with their strategy for conflicts
   - The `theirs` strategy ensures release branch documentation (like RELEASE_NOTES.md) takes precedence
 - Pushes merged changes to `main`
 
@@ -74,11 +74,11 @@ The release workflow automates the entire release process, ensuring consistency 
 - Pushes tag to origin
 
 **8. Deploy to GitHub Packages**
-- Deploys artifacts to GitHub Packages: `mvn deploy -DskipTests -DskipDependencyCheck`
+- Deploys artifacts to GitHub Packages
 - Artifacts include JAR and POM files
 
-**9. Create GitHub Release**
-- Generates release notes from merged PRs between previous tag and current release
+**9. Create a GitHub Release**
+- Generates release notes from merged PRs between the previous tag and the current release
 - Creates GitHub Release with:
   - Tag: `vX.Y.Z`
   - Title: `IZ Gateway Core vX.Y.Z`
@@ -87,12 +87,11 @@ The release workflow automates the entire release process, ensuring consistency 
 - Enables auto-generated release notes as well
 
 **10. Update Develop Branch**
-- Discards any local changes from main branch context
 - Checks out fresh `develop` branch
 - Merges release branch to `develop` (to bring in RELEASE_NOTES.md updates)
-- Bumps version to next SNAPSHOT version:
+- Bumps the version to the next SNAPSHOT version:
   - If not provided, auto-increments minor version (e.g., `2.3.0` → `2.4.0-SNAPSHOT`)
-  - If provided, uses specified version with `-SNAPSHOT` appended if needed
+  - If provided, uses the specified version with `-SNAPSHOT` appended if needed
 - Commits: `"chore: bump version to X.Y.Z-SNAPSHOT"`
 - Pushes updated `develop` branch
 
@@ -108,10 +107,10 @@ If `delete-release-branch-on-failure` is `true` (default):
   - Deletes release branch
   - Deletes GitHub Packages artifact (if deployed)
   - Deletes GitHub Release (if created)
-- Provides troubleshooting summary
+- Provides a troubleshooting summary
 
 If `delete-release-branch-on-failure` is `false`:
-- Keeps release branch for investigation
+- Keeps the release branch for investigation
 - Provides manual cleanup instructions
 
 **Usage Examples**:
@@ -128,7 +127,7 @@ Leave delete-release-branch-on-failure checked
 Click: Run workflow
 ```
 
-*Example 2: Specify custom next version for major release*
+*Example 2: Specify custom next version for the major release*
 ```
 Go to Actions → Release → Run workflow
 Select branch: develop
@@ -158,7 +157,7 @@ Click: Run workflow
 
 ---
 
-### 3. Hotfix Release (`hotfix.yml`)
+### Hotfix Release (`hotfix.yml`)
 
 **Trigger**: Manual (`workflow_dispatch`)
 
@@ -213,12 +212,12 @@ The hotfix workflow follows a similar process to standard releases but with key 
 - Checks for SNAPSHOT dependencies (fails if ANY found, including izgw-bom parent)
 
 **2. Testing Phase** (unless skip-tests enabled)
-- Runs full test suite on hotfix branch
+- Runs a full test suite on the hotfix branch
 - Runs OWASP dependency check (unless skip-owasp-check enabled)
 
 **3. Release Preparation** (on hotfix branch)
 - Updates `RELEASE_NOTES.md` with hotfix changes
-- Sets version to release version
+- Sets the version to the release version
 - Commits changes to hotfix branch
 
 **4. Build Artifacts**
@@ -226,7 +225,7 @@ The hotfix workflow follows a similar process to standard releases but with key 
 
 **5. Merge to Main**
 - Merges hotfix branch to `main`
-- Creates annotated tag on main
+- Creates annotated tag on the main branch
 
 **6. Deploy and Release**
 - Deploys artifacts to GitHub Packages
@@ -242,8 +241,8 @@ The hotfix workflow follows a similar process to standard releases but with key 
 **Key Differences from Standard Release**:
 - Runs from `hotfix/*` branch instead of `develop`
 - Does not create a new branch (uses existing hotfix branch)
-- Does not bump version on develop after release
-- Default is to keep branch on failure for investigation
+- Does not bump the version on the develop branch after release
+- The default action is to keep the branch on failure for investigation
 
 **Usage**:
 ```
@@ -269,13 +268,9 @@ Click: Run workflow
 3. Consider whether fixes need to be merged to develop
 4. Update integration documentation if needed
 
-**When to Use Hotfix vs Standard Release**:
-- **Hotfix**: Critical bug in production, security vulnerability, urgent patch needed
-- **Standard Release**: Normal development cycle, feature releases, non-urgent fixes
-
 ---
 
-### 4. Release Core (`_release-core.yml`)
+### Release Core (`_release-core.yml`)
 
 **Trigger**: Called by other workflows (`workflow_call`)
 
@@ -283,7 +278,7 @@ Click: Run workflow
 
 **Design Pattern**: This is a [reusable workflow](https://docs.github.com/en/actions/using-workflows/reusing-workflows) that encapsulates all the core release steps. It accepts parameters from caller workflows like `release.yml` and `hotfix.yml`.
 
-**Inputs** (passed from caller workflow):
+**Inputs** (passed from the caller workflow):
 - `release-version`: Version to release (required)
 - `next-snapshot-version`: Next SNAPSHOT version (optional for standard releases)
   - If not provided, auto-increments minor version
