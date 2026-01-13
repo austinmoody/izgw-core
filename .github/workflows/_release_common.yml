@@ -7,7 +7,7 @@
 # To this path:
 # /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions
 
-name: Release - Core
+name: Release - Common
 
 on:
   workflow_call:
