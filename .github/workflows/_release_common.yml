@@ -321,33 +321,33 @@ jobs:
         echo "- Deploy artifacts to GitHub Packages"
         mvn -B clean test package deploy -DskipDependencyCheck=true -DskipTests=${{ inputs.skip-tests }}
 
-        - name: Run OWASP Dependency Check
-          if: ${{ !inputs.skip-owasp-check }}
-          env:
-            # Per https://github.com/marketplace/actions/dependency-check, fix JAVA_HOME location for action
-            JAVA_HOME: /opt/jdk
-          uses: dependency-check/Dependency-Check_Action@main
-          with:
-            project: IZG Core
-            path: target/izgw-core-${{ inputs.release-version }}.jar
-            format: 'HTML'
-            out: 'owasp'
-            args: >
-              --ossIndexUsername ${{ secrets.OSS_INDEX_USERNAME }}
-              --ossIndexPassword ${{ secrets.OSS_INDEX_PASSWORD }}        
-              --failOnCVSS 7
-              --suppression ./dependency-suppression.xml
-              --disableNuspec    
-              --disableNugetconf  
-              --disableAssembly      
+    - name: Run OWASP Dependency Check
+      if: ${{ !inputs.skip-owasp-check }}
+      env:
+        # Per https://github.com/marketplace/actions/dependency-check, fix JAVA_HOME location for action
+        JAVA_HOME: /opt/jdk
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: IZG Core
+        path: target/izgw-core-${{ inputs.release-version }}.jar
+        format: 'HTML'
+        out: 'owasp'
+        args: >
+          --ossIndexUsername ${{ secrets.OSS_INDEX_USERNAME }}
+          --ossIndexPassword ${{ secrets.OSS_INDEX_PASSWORD }}        
+          --failOnCVSS 7
+          --suppression ./dependency-suppression.xml
+          --disableNuspec    
+          --disableNugetconf  
+          --disableAssembly      
 
-        - name: Upload dependency check report
-          if: ${{ !inputs.skip-owasp-check }}
-          uses: actions/upload-artifact@v4
-          with:
-            name: dependency-check-report
-            path: ./owasp/dependency-check-report.html
-            if-no-files-found: ignore
+    - name: Upload dependency check report
+      if: ${{ !inputs.skip-owasp-check }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-check-report
+        path: ./owasp/dependency-check-report.html
+        if-no-files-found: ignore
 
     - name: Merge release branch to main
       run: |
