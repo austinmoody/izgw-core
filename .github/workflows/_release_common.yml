@@ -30,11 +30,6 @@ on:
         required: false
         type: boolean
         default: false
-      delete-release-branch-on-failure:
-        description: 'Delete release branch if workflow fails'
-        required: false
-        type: boolean
-        default: true
       release-type:
         description: 'Type of release: standard (from develop) or hotfix (from hotfix/* branch)'
         required: false
@@ -208,7 +203,7 @@ jobs:
 
     # TODO - move to GH actions like other workflows
     - name: Run OWASP Dependency Check
-      if: ${{ !inputs.skip-tests && !inputs.skip-owasp-check }}
+      if: ${{ !inputs.skip-owasp-check }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -216,7 +211,7 @@ jobs:
         mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
 
     - name: Upload dependency check report
-      if: ${{ !inputs.skip-tests && !inputs.skip-owasp-check }}
+      if: ${{ !inputs.skip-owasp-check }}
       uses: actions/upload-artifact@v4
       with:
         name: dependency-check-report
@@ -496,7 +491,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
 
     - name: Cleanup on failure
-      if: failure() && inputs.delete-release-branch-on-failure
+      if: failure()
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -700,7 +695,7 @@ jobs:
         echo "- Artifact already exists: Manually delete the GitHub Package version before retrying" >> $GITHUB_STEP_SUMMARY
 
     - name: Notify on failure (keep branch)
-      if: failure() && !inputs.delete-release-branch-on-failure
+      if: failure()
       run: |
         echo "## Release Failed - Branch Kept" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
