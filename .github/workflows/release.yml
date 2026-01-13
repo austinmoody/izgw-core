@@ -33,7 +33,7 @@ on:
 
 jobs:
   release:
-    uses: ./.github/workflows/_release-core.yml
+    uses: ./.github/workflows/_release_common.yml
     with:
       release-version: ${{ inputs.release-version }}
       next-snapshot-version: ${{ inputs.next-snapshot-version }}

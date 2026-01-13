@@ -35,7 +35,7 @@ on:
 
 jobs:
   hotfix:
-    uses: ./.github/workflows/_release-core.yml
+    uses: ./.github/workflows/_release_common.yml
     with:
       release-version: ${{ inputs.release-version }}
       skip-tests: ${{ inputs.skip-tests }}
