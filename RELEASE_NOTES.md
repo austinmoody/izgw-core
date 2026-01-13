@@ -1,3 +1,9 @@
+## [2.18.0] - 2026-01-13
+
+### Changes
+- Rename release workflow file to _release_common.yml and update references in hotfix and release workflows ([#49](https://github.com/austinmoody/izgw-core/pull/49))
+- Update release workflow to use JDK 21 clean up some verbose log messages ([#48](https://github.com/austinmoody/izgw-core/pull/48))
+
 ## [2.17.1] - 2025-12-29
 
 ### Changes
