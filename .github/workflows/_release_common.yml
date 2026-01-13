@@ -35,13 +35,6 @@ on:
         required: false
         type: string
         default: 'standard'
-    secrets:
-      ACTIONS_KEY:
-        required: true
-      COMMON_PASS:
-        required: true
-      ELASTIC_API_KEY:
-        required: true
 
 jobs:
   release:
