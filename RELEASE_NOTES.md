@@ -1,3 +1,12 @@
+## [2.19.0] - 2026-01-13
+
+### Changes
+- chore: remove unused secrets section from release workflow inputs. Secrets are inherited now not passed in ([#52](https://github.com/austinmoody/izgw-core/pull/52))
+- refactor: combine Maven test, build, deploy, and site generation steps into a single job in release workflow ([#51](https://github.com/austinmoody/izgw-core/pull/51))
+- Remove delete-release-branch-on-failure option from release workflows and clean up related logic ([#50](https://github.com/austinmoody/izgw-core/pull/50))
+- Rename release workflow file to _release_common.yml and update references in hotfix and release workflows ([#49](https://github.com/austinmoody/izgw-core/pull/49))
+- Update release workflow to use JDK 21 clean up some verbose log messages ([#48](https://github.com/austinmoody/izgw-core/pull/48))
+
 ## [2.18.0] - 2026-01-13
 
 ### Changes
