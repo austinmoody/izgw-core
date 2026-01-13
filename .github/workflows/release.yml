@@ -25,23 +25,14 @@ on:
         required: false
         type: boolean
         default: false
-      delete-release-branch-on-failure:
-        description: 'Delete release branch if workflow fails'
-        required: false
-        type: boolean
-        default: true
 
 jobs:
   release:
     uses: ./.github/workflows/_release_common.yml
+    secrets: inherit
     with:
       release-version: ${{ inputs.release-version }}
       next-snapshot-version: ${{ inputs.next-snapshot-version }}
       skip-tests: ${{ inputs.skip-tests }}
       skip-owasp-check: ${{ inputs.skip-owasp-check }}
-      delete-release-branch-on-failure: ${{ inputs.delete-release-branch-on-failure }}
       release-type: standard
-    secrets:
-      ACTIONS_KEY: ${{ secrets.ACTIONS_KEY }}
-      COMMON_PASS: ${{ secrets.COMMON_PASS }}
-      ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
