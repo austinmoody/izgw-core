@@ -1,8 +1,13 @@
 # Reusable Release Workflow
 # This workflow contains the shared release logic used by both standard releases and hotfixes.
 # It should not be triggered directly - use release.yml or hotfix.yml instead.
+#
+# TODO - when moving to IZGateway GitHub you'll need to update this path:
+# /users/austinmoody/packages/maven/gov.cdc.izgw.izgw-core/versions
+# To this path:
+# /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions
 
-name: Release - Core
+name: Release - Common
 
 on:
   workflow_call:
@@ -25,23 +30,11 @@ on:
         required: false
         type: boolean
         default: false
-      delete-release-branch-on-failure:
-        description: 'Delete release branch if workflow fails'
-        required: false
-        type: boolean
-        default: true
       release-type:
         description: 'Type of release: standard (from develop) or hotfix (from hotfix/* branch)'
         required: false
         type: string
         default: 'standard'
-    secrets:
-      ACTIONS_KEY:
-        required: true
-      COMMON_PASS:
-        required: true
-      ELASTIC_API_KEY:
-        required: true
 
 jobs:
   release:
@@ -54,11 +47,11 @@ jobs:
         ssh-key: ${{ secrets.ACTIONS_KEY }}
         fetch-depth: 0  # Full history for release notes generation
 
-    - name: Set up JDK 17
+    - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
-        distribution: 'adopt'
+        java-version: '21'
+        distribution: 'temurin'
         cache: maven
         server-id: github
         server-username: GITHUB_ACTOR
@@ -110,10 +103,6 @@ jobs:
           if [[ "$CURRENT_BRANCH" != "develop" ]]; then
             echo "Error: Standard release workflow must be run from 'develop' branch"
             echo "Current branch: $CURRENT_BRANCH"
-            echo ""
-            echo "Please switch to develop branch and try again:"
-            echo "  git checkout develop"
-            echo "  git pull origin develop"
             exit 1
           fi
           echo "Running standard release from develop branch"
@@ -123,9 +112,6 @@ jobs:
           if [[ ! "$CURRENT_BRANCH" =~ ^hotfix/ ]]; then
             echo "Error: Hotfix release workflow must be run from a 'hotfix/*' branch"
             echo "Current branch: $CURRENT_BRANCH"
-            echo ""
-            echo "Please switch to your hotfix branch and try again:"
-            echo "  git checkout hotfix/<version>"
             exit 1
           fi
           echo "Running hotfix release from $CURRENT_BRANCH"
@@ -140,11 +126,6 @@ jobs:
         if [[ "${{ inputs.release-type }}" == "standard" ]]; then
           if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
             echo "Error: Release branch '$RELEASE_BRANCH' already exists"
-            echo ""
-            echo "This likely means a previous release attempt failed or is in progress."
-            echo "Please either:"
-            echo "  1. Delete the branch: git push origin --delete $RELEASE_BRANCH"
-            echo "  2. Or use a different version number"
             exit 1
           fi
           echo "Release branch does not exist yet"
@@ -165,34 +146,11 @@ jobs:
         # Note: This checks for the package version, not individual artifacts
         PACKAGE_EXISTS=$(gh api \
           -H "Accept: application/vnd.github+json" \
-          "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions" \
+          "/users/austinmoody/packages/maven/gov.cdc.izgw.izgw-core/versions" \
           --jq ".[] | select(.name==\"${{ inputs.release-version }}\") | .name" 2>/dev/null || echo "")
 
         if [ -n "$PACKAGE_EXISTS" ]; then
           echo "ERROR: Artifact version ${{ inputs.release-version }} already exists in GitHub Packages"
-          echo ""
-          echo "This likely means a previous release attempt failed after deploying artifacts."
-          echo ""
-          echo "To clean up and retry the release:"
-          echo ""
-          echo "1. Delete the package version from GitHub Packages:"
-          echo "   - Via GitHub CLI:"
-          echo "     VERSION_ID=\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"${{ inputs.release-version }}\") | .id')"
-          echo "     gh api --method DELETE /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/\$VERSION_ID"
-          echo ""
-          echo "   - Via GitHub UI:"
-          echo "     https://github.com/orgs/IZGateway/packages?repo_name=izgw-core"
-          echo "     Select 'izgw-core' package, find version ${{ inputs.release-version }}, and delete"
-          echo ""
-          echo "2. Delete the release branch if it was created:"
-          echo "   git push origin --delete $RELEASE_BRANCH"
-          echo ""
-          echo "3. Delete the git tag if it was created:"
-          echo "   git push origin --delete v${{ inputs.release-version }}"
-          echo ""
-          echo "4. If merge to main happened, you may need to revert the merge commit on main"
-          echo ""
-          echo "5. After cleanup, re-run this workflow"
           exit 1
         fi
 
@@ -213,8 +171,6 @@ jobs:
         PARENT_VERSION=$(mvn help:evaluate -Dexpression=project.parent.version -q -DforceStdout)
         if [[ "$PARENT_VERSION" == *"SNAPSHOT"* ]]; then
           echo "ERROR: Parent POM is a SNAPSHOT version: $PARENT_VERSION"
-          echo ""
-          echo "Please release izgw-bom first before releasing izgw-core."
           exit 1
         fi
         echo "Parent POM version is a release version: $PARENT_VERSION"
@@ -223,25 +179,14 @@ jobs:
         if [ -n "$SNAPSHOT_DEPS" ]; then
           echo "ERROR: Found SNAPSHOT dependencies in the project:"
           echo "$SNAPSHOT_DEPS"
-          echo ""
-          echo "Please update all dependencies to release versions before creating a release."
           exit 1
         fi
 
         echo "No SNAPSHOT dependencies found - ready for release"
 
-    - name: Run tests
-      if: ${{ !inputs.skip-tests }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COMMON_PASS: ${{ secrets.COMMON_PASS }}
-        ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
-      run: |
-        echo "Running test suite..."
-        mvn -B clean test
-
+    # TODO - move to GH actions like other workflows
     - name: Run OWASP Dependency Check
-      if: ${{ !inputs.skip-tests && !inputs.skip-owasp-check }}
+      if: ${{ !inputs.skip-owasp-check }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -249,7 +194,7 @@ jobs:
         mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
 
     - name: Upload dependency check report
-      if: ${{ !inputs.skip-tests && !inputs.skip-owasp-check }}
+      if: ${{ !inputs.skip-owasp-check }}
       uses: actions/upload-artifact@v4
       with:
         name: dependency-check-report
@@ -277,7 +222,7 @@ jobs:
         if [ -z "$PREVIOUS_TAG" ]; then
           echo "First release, getting all merge commits"
           # Get all merge commits
-          PR_CHANGES=$(git log --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
+          PR_CHANGES=$(git log --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | while read -r pr; do gh pr view "$pr" --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"' 2>/dev/null || echo ""; done | grep -v "^$")
         else
           echo "Generating release note from $PREVIOUS_TAG to HEAD"
           # Get merge commits since the previous tag
@@ -381,14 +326,17 @@ jobs:
         echo "next_snapshot_version=$NEXT_SNAPSHOT" >> $GITHUB_OUTPUT
         echo "Final next SNAPSHOT version: $NEXT_SNAPSHOT"
 
-    - name: Build and package
+    - name: Build, Test, Deploy artifacts, and generate Site
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COMMON_PASS: ${{ secrets.COMMON_PASS }}
         ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
       run: |
-        echo "Building release artifacts..."
-        mvn -B clean package -DskipTests=${{ inputs.skip-tests }} -DskipDependencyCheck=true
+        echo "Using Maven to:"
+        echo "- Test"
+        echo "- Build artifacts"
+        echo "- Deploy artifacts to GitHub Packages"
+        mvn -B clean test package deploy -DskipDependencyCheck=true
 
     - name: Merge release branch to main
       run: |
@@ -416,16 +364,6 @@ jobs:
         git tag -a "v${{ inputs.release-version }}" -m "Release version ${{ inputs.release-version }}"
         git push origin "v${{ inputs.release-version }}"
         echo "Tag created on main"
-
-    - name: Deploy to GitHub Packages
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COMMON_PASS: ${{ secrets.COMMON_PASS }}
-      run: |
-        echo "Deploying to GitHub Packages..."
-        echo "Git operations completed successfully - proceeding with artifact deployment"
-        mvn -B deploy -DskipTests -DskipDependencyCheck=true
-        echo "Artifacts deployed to GitHub Packages"
 
     - name: Update develop branch
       run: |
@@ -496,28 +434,6 @@ jobs:
 
         $PR_CHANGES
 
-        ## Installation
-
-        Add to your \`pom.xml\`:
-
-        \`\`\`xml
-        <dependency>
-          <groupId>gov.cdc.izgw</groupId>
-          <artifactId>izgw-core</artifactId>
-          <version>${{ inputs.release-version }}</version>
-        </dependency>
-        \`\`\`
-
-        ## Maven Repository
-
-        \`\`\`xml
-        <repositories>
-          <repository>
-            <id>github</id>
-            <url>https://maven.pkg.github.com/IZGateway/izgw-core</url>
-          </repository>
-        </repositories>
-        \`\`\`
         EOF
         echo "GitHub Release body created"
 
@@ -549,40 +465,9 @@ jobs:
           echo "- **Next version:** ${{ steps.next-version.outputs.next_snapshot_version }} (on develop)" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### What Happened" >> $GITHUB_STEP_SUMMARY
-        if [ "${{ inputs.skip-tests }}" == "true" ]; then
-          echo "1. Skipped tests (emergency release mode)" >> $GITHUB_STEP_SUMMARY
-        elif [ "${{ inputs.skip-owasp-check }}" == "true" ]; then
-          echo "1. Ran tests on source branch (OWASP check skipped)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "1. Ran tests and OWASP security check on source branch" >> $GITHUB_STEP_SUMMARY
-        fi
-        if [[ "${{ inputs.release-type }}" == "standard" ]]; then
-          echo "2. Created release branch from develop" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "2. Used existing hotfix branch" >> $GITHUB_STEP_SUMMARY
-        fi
-        echo "3. Updated RELEASE_NOTES.md with release notes" >> $GITHUB_STEP_SUMMARY
-        echo "4. Set version to ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
-        echo "5. Built release artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "6. Merged release branch to main (auto-resolving conflicts)" >> $GITHUB_STEP_SUMMARY
-        echo "7. Tagged v${{ inputs.release-version }} on main" >> $GITHUB_STEP_SUMMARY
-        echo "8. Deployed artifacts to GitHub Packages" >> $GITHUB_STEP_SUMMARY
-        if [[ -n "${{ steps.next-version.outputs.next_snapshot_version }}" ]]; then
-          echo "9. Updated develop with RELEASE_NOTES and bumped to ${{ steps.next-version.outputs.next_snapshot_version }}" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "9. Merged release notes back to develop" >> $GITHUB_STEP_SUMMARY
-        fi
-        echo "10. Created GitHub Release" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-        echo "1. Review the [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ inputs.release-version }})" >> $GITHUB_STEP_SUMMARY
-        echo "2. **Notify consuming applications (izg-hub, izg-xform) of the new release**" >> $GITHUB_STEP_SUMMARY
-        echo "3. Review RELEASE_NOTES.md in develop branch" >> $GITHUB_STEP_SUMMARY
-        echo "4. Update integration documentation if needed" >> $GITHUB_STEP_SUMMARY
 
     - name: Cleanup on failure
-      if: failure() && inputs.delete-release-branch-on-failure
+      if: failure()
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -603,11 +488,11 @@ jobs:
             echo "✓ Successfully deleted git tag"
             CLEANUP_SUCCESSES="$CLEANUP_SUCCESSES\n- Git tag v${{ inputs.release-version }}"
           else
-            echo "✗ FAILED to delete git tag"
+            echo " FAILED to delete git tag"
             CLEANUP_WARNINGS="$CLEANUP_WARNINGS\n- Git tag v${{ inputs.release-version }} (deletion failed)"
           fi
         else
-          echo "○ Tag does not exist (skipped)"
+          echo " Tag does not exist (skipped)"
         fi
         echo ""
 
@@ -627,14 +512,14 @@ jobs:
               echo "✓ Successfully reverted merge commit on main"
               CLEANUP_SUCCESSES="$CLEANUP_SUCCESSES\n- Main branch merge commit"
             else
-              echo "✗ FAILED to revert main branch"
+              echo " FAILED to revert main branch"
               CLEANUP_WARNINGS="$CLEANUP_WARNINGS\n- Main branch merge commit (revert failed - MANUAL CLEANUP REQUIRED)"
             fi
           else
-            echo "○ No merge commit found on main (skipped)"
+            echo " No merge commit found on main (skipped)"
           fi
         else
-          echo "○ Main branch does not exist (skipped)"
+          echo " Main branch does not exist (skipped)"
         fi
         echo ""
 
@@ -647,14 +532,14 @@ jobs:
               echo "✓ Successfully deleted release branch"
               CLEANUP_SUCCESSES="$CLEANUP_SUCCESSES\n- Release branch ${{ steps.validate.outputs.release_branch }}"
             else
-              echo "✗ FAILED to delete release branch"
+              echo " FAILED to delete release branch"
               CLEANUP_WARNINGS="$CLEANUP_WARNINGS\n- Release branch ${{ steps.validate.outputs.release_branch }} (deletion failed)"
             fi
           else
-            echo "○ Release branch does not exist (skipped)"
+            echo " Release branch does not exist (skipped)"
           fi
         else
-          echo "○ Hotfix branch kept for investigation: ${{ steps.validate.outputs.release_branch }}"
+          echo " Hotfix branch kept for investigation: ${{ steps.validate.outputs.release_branch }}"
         fi
         echo ""
 
@@ -662,16 +547,16 @@ jobs:
         echo "Checking for GitHub Packages artifact version ${{ inputs.release-version }}..."
         VERSION_ID=$(gh api \
           -H "Accept: application/vnd.github+json" \
-          "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions" \
+          "/users/austinmoody/packages/maven/gov.cdc.izgw.izgw-core/versions" \
           --jq ".[] | select(.name==\"${{ inputs.release-version }}\") | .id" 2>&1)
 
         if [ $? -ne 0 ]; then
-          echo "✗ FAILED to query GitHub Packages API"
+          echo " FAILED to query GitHub Packages API"
           echo "Error: $VERSION_ID"
           CLEANUP_WARNINGS="$CLEANUP_WARNINGS\n- GitHub Packages artifact (API query failed - may still exist)"
         elif [ -n "$VERSION_ID" ]; then
           echo "✓ Found artifact (version ID: $VERSION_ID), attempting deletion..."
-          DELETE_RESULT=$(gh api --method DELETE "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/$VERSION_ID" 2>&1)
+          DELETE_RESULT=$(gh api --method DELETE "/users/austinmoody/packages/maven/gov.cdc.izgw.izgw-core/versions/$VERSION_ID" 2>&1)
           if [ $? -eq 0 ]; then
             echo "✓ Successfully deleted GitHub Packages artifact"
             CLEANUP_SUCCESSES="$CLEANUP_SUCCESSES\n- GitHub Packages artifact v${{ inputs.release-version }}"
@@ -680,21 +565,21 @@ jobs:
             sleep 2
             VERIFY_ID=$(gh api \
               -H "Accept: application/vnd.github+json" \
-              "/orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions" \
+              "/users/austinmoody/packages/maven/gov.cdc.izgw.izgw-core/versions" \
               --jq ".[] | select(.name==\"${{ inputs.release-version }}\") | .id" 2>/dev/null || echo "")
             if [ -n "$VERIFY_ID" ]; then
-              echo "⚠ WARNING: Artifact still exists after deletion attempt"
+              echo " WARNING: Artifact still exists after deletion attempt"
               CLEANUP_WARNINGS="$CLEANUP_WARNINGS\n- GitHub Packages artifact v${{ inputs.release-version }} (deletion appeared to succeed but artifact still exists)"
             else
               echo "✓ Verified: Artifact successfully removed"
             fi
           else
-            echo "✗ FAILED to delete GitHub Packages artifact"
+            echo " FAILED to delete GitHub Packages artifact"
             echo "Error: $DELETE_RESULT"
             CLEANUP_WARNINGS="$CLEANUP_WARNINGS\n- GitHub Packages artifact v${{ inputs.release-version }} (deletion failed - MANUAL CLEANUP REQUIRED)"
           fi
         else
-          echo "○ Artifact does not exist (skipped)"
+          echo " Artifact does not exist (skipped)"
         fi
         echo ""
 
@@ -710,18 +595,18 @@ jobs:
             # Verify deletion
             sleep 2
             if gh release view "v${{ inputs.release-version }}" >/dev/null 2>&1; then
-              echo "⚠ WARNING: Release still exists after deletion attempt"
+              echo " WARNING: Release still exists after deletion attempt"
               CLEANUP_WARNINGS="$CLEANUP_WARNINGS\n- GitHub Release v${{ inputs.release-version }} (deletion appeared to succeed but release still exists)"
             else
               echo "✓ Verified: Release successfully removed"
             fi
           else
-            echo "✗ FAILED to delete GitHub Release"
+            echo " FAILED to delete GitHub Release"
             echo "Error: $DELETE_RESULT"
             CLEANUP_WARNINGS="$CLEANUP_WARNINGS\n- GitHub Release v${{ inputs.release-version }} (deletion failed)"
           fi
         else
-          echo "○ Release does not exist (skipped)"
+          echo " Release does not exist (skipped)"
         fi
         echo ""
 
@@ -733,10 +618,10 @@ jobs:
           echo -e "\n✓ Successfully cleaned up:$CLEANUP_SUCCESSES"
         fi
         if [ -n "$CLEANUP_WARNINGS" ]; then
-          echo -e "\n⚠ WARNINGS - Manual cleanup may be required for:$CLEANUP_WARNINGS"
+          echo -e "\n WARNINGS - Manual cleanup may be required for:$CLEANUP_WARNINGS"
         fi
         if [ -z "$CLEANUP_SUCCESSES" ] && [ -z "$CLEANUP_WARNINGS" ]; then
-          echo "○ No artifacts found to clean up"
+          echo " No artifacts found to clean up"
         fi
         echo ""
 
@@ -752,7 +637,7 @@ jobs:
         fi
 
         if [ -n "$CLEANUP_WARNINGS" ]; then
-          echo "### ⚠ Manual Cleanup Required" >> $GITHUB_STEP_SUMMARY
+          echo "###  Manual Cleanup Required" >> $GITHUB_STEP_SUMMARY
           echo "The following items could not be automatically cleaned up:" >> $GITHUB_STEP_SUMMARY
           echo -e "$CLEANUP_WARNINGS" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -761,7 +646,7 @@ jobs:
         fi
 
         if [ -z "$CLEANUP_SUCCESSES" ] && [ -z "$CLEANUP_WARNINGS" ]; then
-          echo "### ○ Nothing to Clean Up" >> $GITHUB_STEP_SUMMARY
+          echo "###  Nothing to Clean Up" >> $GITHUB_STEP_SUMMARY
           echo "No release artifacts were found (the workflow failed early)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
         fi
@@ -769,7 +654,7 @@ jobs:
         echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
         echo "1. Review the cleanup logs above for any warnings" >> $GITHUB_STEP_SUMMARY
         if [ -n "$CLEANUP_WARNINGS" ]; then
-          echo "2. **Manually clean up any items marked with ⚠ WARNING**" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Manually clean up any items marked with  WARNING**" >> $GITHUB_STEP_SUMMARY
           echo "3. Review the workflow error logs to identify what failed" >> $GITHUB_STEP_SUMMARY
           echo "4. Fix issues on source branch" >> $GITHUB_STEP_SUMMARY
           echo "5. Run the workflow again" >> $GITHUB_STEP_SUMMARY
@@ -786,7 +671,7 @@ jobs:
         echo "- Artifact already exists: Manually delete the GitHub Package version before retrying" >> $GITHUB_STEP_SUMMARY
 
     - name: Notify on failure (keep branch)
-      if: failure() && !inputs.delete-release-branch-on-failure
+      if: failure()
       run: |
         echo "## Release Failed - Branch Kept" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -810,8 +695,8 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "4. **GitHub Packages artifact** (if deployed):" >> $GITHUB_STEP_SUMMARY
         echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "   VERSION_ID=\\\$(gh api /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"${{ inputs.release-version }}\") | .id')" >> $GITHUB_STEP_SUMMARY
-        echo "   gh api --method DELETE /orgs/IZGateway/packages/maven/gov.cdc.izgw.izgw-core/versions/\\\$VERSION_ID" >> $GITHUB_STEP_SUMMARY
+        echo "   VERSION_ID=\\\$(gh api /users/austinmoody/packages/maven/gov.cdc.izgw.izgw-core/versions --jq '.[] | select(.name==\"${{ inputs.release-version }}\") | .id')" >> $GITHUB_STEP_SUMMARY
+        echo "   gh api --method DELETE /users/austinmoody/packages/maven/gov.cdc.izgw.izgw-core/versions/\\\$VERSION_ID" >> $GITHUB_STEP_SUMMARY
         echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "5. **GitHub Release** (if created):" >> $GITHUB_STEP_SUMMARY
