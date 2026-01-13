@@ -191,16 +191,6 @@ jobs:
 
         echo "No SNAPSHOT dependencies found - ready for release"
 
-    - name: Run tests
-      if: ${{ !inputs.skip-tests }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COMMON_PASS: ${{ secrets.COMMON_PASS }}
-        ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
-      run: |
-        echo "Running test suite..."
-        mvn -B clean test
-
     # TODO - move to GH actions like other workflows
     - name: Run OWASP Dependency Check
       if: ${{ !inputs.skip-owasp-check }}
@@ -343,14 +333,17 @@ jobs:
         echo "next_snapshot_version=$NEXT_SNAPSHOT" >> $GITHUB_OUTPUT
         echo "Final next SNAPSHOT version: $NEXT_SNAPSHOT"
 
-    - name: Build and package
+    - name: Build, Test, Deploy artifacts, and generate Site
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COMMON_PASS: ${{ secrets.COMMON_PASS }}
         ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
       run: |
-        echo "Building release artifacts..."
-        mvn -B clean package -DskipTests=true -DskipDependencyCheck=true
+        echo "Using Maven to:"
+        echo "- Test"
+        echo "- Build artifacts"
+        echo "- Deploy artifacts to GitHub Packages"
+        mvn -B clean test package deploy -DskipDependencyCheck=true
 
     - name: Merge release branch to main
       run: |
@@ -378,16 +371,6 @@ jobs:
         git tag -a "v${{ inputs.release-version }}" -m "Release version ${{ inputs.release-version }}"
         git push origin "v${{ inputs.release-version }}"
         echo "Tag created on main"
-
-    - name: Deploy to GitHub Packages
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COMMON_PASS: ${{ secrets.COMMON_PASS }}
-      run: |
-        echo "Deploying to GitHub Packages..."
-        echo "Git operations completed successfully - proceeding with artifact deployment"
-        mvn -B deploy -DskipTests=true -DskipDependencyCheck=true
-        echo "Artifacts deployed to GitHub Packages"
 
     - name: Update develop branch
       run: |
