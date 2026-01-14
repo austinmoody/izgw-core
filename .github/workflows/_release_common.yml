@@ -401,11 +401,44 @@ jobs:
           echo "PR_CHANGES.txt restored after checkout"
         fi
 
-        # Merge release branch to get RELEASE_NOTES.md updates
+        # Merge release branch to develop
         # Use -X ours to prefer develop's version for conflicts (e.g., pom.xml version)
         # During hotfix merges, develop may already be working on a newer version
-        echo "Merging release branch to develop for RELEASE_NOTES updates..."
+        echo "Merging release branch to develop..."
         git merge --no-ff -X ours "${{ steps.validate.outputs.release_branch }}" -m "Merge release branch ${{ steps.validate.outputs.release_branch }} to develop"
+
+        # Check if any hotfix files didn't merge cleanly (only for hotfix releases)
+        # With -X ours, conflicts are silently resolved to develop's version, which could
+        # mean hotfix code didn't actually make it into develop
+        if [[ "${{ inputs.release-type }}" == "hotfix" ]]; then
+          echo "Checking if all hotfix changes merged into develop..."
+
+          # Get files changed in the hotfix branch (comparing to main, where hotfix branched from)
+          CHANGED_FILES=$(git diff --name-only origin/main...${{ steps.validate.outputs.release_branch }} | grep -v -E '^(pom\.xml|RELEASE_NOTES\.md)$' || true)
+
+          UNMERGED_FILES=""
+          for file in $CHANGED_FILES; do
+            if [ -n "$file" ]; then
+              # Compare file content between hotfix branch and current develop
+              HOTFIX_CONTENT=$(git show ${{ steps.validate.outputs.release_branch }}:"$file" 2>/dev/null || echo "__FILE_NOT_FOUND__")
+              DEVELOP_CONTENT=$(git show HEAD:"$file" 2>/dev/null || echo "__FILE_NOT_FOUND__")
+
+              if [ "$HOTFIX_CONTENT" != "$DEVELOP_CONTENT" ] && [ "$HOTFIX_CONTENT" != "__FILE_NOT_FOUND__" ]; then
+                UNMERGED_FILES="$UNMERGED_FILES\n- $file"
+              fi
+            fi
+          done
+
+          if [ -n "$UNMERGED_FILES" ]; then
+            echo "UNMERGED_HOTFIX_FILES<<EOF" >> $GITHUB_ENV
+            echo -e "$UNMERGED_FILES" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            echo "⚠️ WARNING: Some hotfix files may not have merged cleanly into develop"
+            echo -e "Files to verify:$UNMERGED_FILES"
+          else
+            echo "✓ All hotfix changes appear to have merged into develop"
+          fi
+        fi
 
         # Bump to next SNAPSHOT version (only for standard releases)
         if [[ -n "${{ steps.next-version.outputs.next_snapshot_version }}" ]]; then
@@ -468,6 +501,18 @@ jobs:
           echo "- **Next version:** ${{ steps.next-version.outputs.next_snapshot_version }} (on develop)" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Warn if hotfix files didn't merge cleanly into develop
+        if [[ -n "$UNMERGED_HOTFIX_FILES" ]]; then
+          echo "### ⚠️ Action Required: Verify Hotfix Merge to Develop" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following hotfix files may not have merged cleanly into \`develop\` due to conflicts:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$UNMERGED_HOTFIX_FILES" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Please manually verify these changes are in \`develop\`, or cherry-pick them if needed.**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
 
     - name: Cleanup on failure
       if: failure()

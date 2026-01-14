@@ -1,734 +1,137 @@
-# Release Guide for izgw-core
+# Releasing izgw-core
 
-This document describes the release process for the IZ Gateway Core library.
+This covers how to release izgw-core using the GitHub Actions workflows.
 
-## Table of Contents
-- [Overview](#overview)
-- [Release Process](#release-process)
-  - [Automated Release (Recommended)](#automated-release-recommended)
-  - [Hotfix Release (For Production Patches)](#hotfix-release-for-production-patches)
-- [Pre-Release Checklist](#pre-release-checklist)
-- [Manual Release (Advanced)](#manual-release-advanced)
-- [Troubleshooting](#troubleshooting)
+## Versioning
 
-## Overview
+We use [Semantic Versioning](https://semver.org/):
+- **Major** (2.0.0 → 3.0.0): Breaking changes
+- **Minor** (2.3.0 → 2.4.0): New features, backwards-compatible
+- **Patch** (2.3.0 → 2.3.1): Bug fixes
 
-izgw-core follows [Semantic Versioning](https://semver.org/):
-- **MAJOR** version: Incompatible API changes
-- **MINOR** version: New functionality (backwards-compatible)
-- **PATCH** version: Bug fixes (backwards-compatible)
+Development versions end in `-SNAPSHOT` (e.g., `2.4.0-SNAPSHOT`). Releases drop the suffix.
 
-**Version Format:**
-- Development: `X.Y.Z-SNAPSHOT` (e.g., `2.4.0-SNAPSHOT`)
-- Release: `X.Y.Z` (e.g., `2.4.0`)
+## Branch Strategy
 
-**Branch Strategy:**
-- **develop**: Active development, contains unreleased features
-- **main**: Production-ready code, reflects latest release
-- **release/X.Y.Z**: Release preparation branches created from develop (kept after release)
-- **hotfix/X.Y.Z**: Emergency patch branches created from main (kept after release)
+- **develop**: Where active development happens
+- **main**: Production-ready code, always reflects the latest release
+- **release/X.Y.Z**: Created during standard releases (kept for history)
+- **hotfix/X.Y.Z**: Created manually (from the main branch) for emergency patches (kept for history)
 
-## Release Process
+---
 
-### Automated Release (Recommended)
+## Standard Release
 
-The automated release process creates a release branch from `develop`, prepares the release, merges to `main`, and updates `develop` with the next SNAPSHOT version.
+Use this for normal releases from `develop`.
 
-#### Prerequisites
+### Before You Start
 
-Before starting a release, ensure:
-- You are on the `develop` branch
-- All intended features are merged to `develop`
-- All CI/CD checks pass on `develop`
-- No SNAPSHOT dependencies (except parent BOM)
-- All tests pass locally
+Make sure:
+- All the PRs you want in this release are merged to `develop`
+- CI is passing on `develop`
+- No SNAPSHOT dependencies (the workflow will check this anyway)
 
-#### Step 1: Trigger the Release Workflow
+### Run the Workflow
 
-1. **Go to GitHub Actions**
-   - Navigate to: **Actions** → **Release**
+1. Go to **Actions** → **Release - Standard**
+2. Click **Run workflow**
+3. Make sure `develop` is selected
+4. Enter the **release version** (e.g., `2.4.0`)
+5. Optionally enter the **next SNAPSHOT version**
+   - Leave blank to auto-increment minor version (`2.4.0` → `2.5.0-SNAPSHOT`)
+   - Or specify something like `3.0.0` for a major bump
+6. Click **Run workflow**
 
-2. **Click "Run workflow"**
+### What Happens
 
-3. **Fill in the parameters:**
-   - **Branch**: Select `develop` (must be develop!)
-   - **Release version**: The version to release (e.g., `2.4.0`)
-   - **Next SNAPSHOT version** (optional): The next development version. Can be:
-     - Left blank to auto-increment minor version (e.g., releasing `2.4.0` → `2.5.0-SNAPSHOT`)
-     - A version number like `2.5.0` or `3.0.0` (workflow will append `-SNAPSHOT`)
-     - A full SNAPSHOT version like `2.5.0-SNAPSHOT` or `3.0.0-SNAPSHOT`
-   - **Skip tests**: Leave unchecked (only for emergencies)
-   - **Skip OWASP check**: Leave unchecked (skips dependency vulnerability check)
-   - **Delete release branch on failure**: Leave checked (default)
+1. Validates everything (version format, no SNAPSHOT deps, tag doesn't exist, etc.)
+2. Creates a `release/X.Y.Z` branch from `develop`
+3. Updates `RELEASE_NOTES.md` with merged PRs
+4. Sets the version to the release version
+5. Runs tests and OWASP dependency check
+6. Deploys to GitHub Packages
+7. Merges to `main` and creates a tag
+8. Creates a GitHub Release with artifacts
+9. Merges release notes back to `develop` and bumps to the next SNAPSHOT version
 
-4. **Click "Run workflow"**
+**After It's Done** Check the [GitHub Release](https://github.com/IZGateway/izgw-core/releases) looks good
 
-#### Step 2: What the Workflow Does
+---
 
-The workflow automatically performs these steps:
+## Hotfix Release
 
-**1. Validation Phase**
-- Validates version format (X.Y.Z)
-- Confirms running from `develop` branch
-- Checks release branch doesn't already exist
-- Checks tag doesn't already exist
-- Verifies no SNAPSHOT dependencies (except parent BOM)
-- Checks if artifact already exists in GitHub Packages
+Use this when there's a critical bug in production that can't wait for a normal release.
 
-**2. Testing Phase** (unless skip-tests is enabled)
-- Runs full test suite (`mvn clean test`)
-- Runs OWASP dependency check with CVSS threshold of 7 (unless skip-owasp-check is enabled)
-- Uploads dependency check report as artifact
+### Create the Hotfix Branch
 
-**3. Release Branch Creation**
-- Creates `release/X.Y.Z` branch from `develop`
-- Pushes release branch to origin
-
-**4. Prepare Release** (on release branch)
-- Updates `RELEASE_NOTES.md` with release notes from merged PRs:
-  - Identifies the previous release tag
-  - Extracts merged PR information from git history
-  - Generates changelog with PR titles and links
-  - Falls back to commit messages if no PRs found
-  - Adds new release section with current date
-- Sets version to release version (removes `-SNAPSHOT`)
-- Commits changes:
-  - `"docs: update RELEASE_NOTES.md for release X.Y.Z"`
-  - `"chore: prepare release X.Y.Z"`
-
-**5. Build Artifacts**
-- Builds release artifacts with `mvn clean package -DskipTests -DskipDependencyCheck`
-
-**6. Merge to Main**
-- Merges release branch to `main` (no-fast-forward, using theirs strategy for conflicts)
-- Creates `main` branch if this is the first release
-- The `theirs` strategy ensures release branch documentation takes precedence
-- Pushes to main branch
-
-**7. Create Tag**
-- Creates tag `vX.Y.Z` on `main` branch
-- Pushes tag to origin
-
-**8. Deploy to GitHub Packages**
-- Deploys artifacts to GitHub Packages with `mvn deploy -DskipTests -DskipDependencyCheck`
-
-**9. Create GitHub Release**
-- Generates release notes from merged PRs
-- Creates GitHub Release with generated notes
-- Attaches JAR and POM artifacts
-
-**10. Update Develop**
-- Merges release branch back to `develop` (for RELEASE_NOTES.md updates)
-- Bumps `develop` version to next SNAPSHOT:
-  - If not provided, auto-increments minor version (e.g., `2.4.0` → `2.5.0-SNAPSHOT`)
-  - If provided, uses specified version with `-SNAPSHOT` appended if needed
-- Commits: `"chore: bump version to X.Y.Z-SNAPSHOT"`
-- Pushes `develop`
-
-**11. Keep Release Branch**
-- Release branch is **kept** for future reference and traceability
-
-#### Step 3: Post-Release Tasks
-
-After the workflow completes successfully:
-
-1. **Verify the Release**
-   - Check the [GitHub Release](https://github.com/IZGateway/izgw-core/releases)
-   - Verify artifact in [GitHub Packages](https://github.com/IZGateway/izgw-core/packages)
-   - Confirm tag exists on `main` branch
-
-2. **Notify Consuming Applications**
-   - Send notification to `izg-hub` team
-   - Send notification to `izg-xform` team
-   - Include release notes and upgrade instructions
-   - Highlight any breaking changes
-
-3. **Review Generated Documentation**
-   - Check `RELEASE_NOTES.md` in `develop` branch
-   - Verify release notes are accurate
-   - Update project documentation if needed
-
-4. **Verify Branch States**
-   ```bash
-   # Main should be at release version
-   git checkout main
-   git pull
-   mvn help:evaluate -Dexpression=project.version -q -DforceStdout
-   # Should show: X.Y.Z
-   # Develop should be at next SNAPSHOT
-   git checkout develop
-   git pull
-   mvn help:evaluate -Dexpression=project.version -q -DforceStdout
-   # Should show: X.Y.Z-SNAPSHOT (next version)
-   ```
-
-### Release Failure Handling
-
-If the release workflow fails:
-
-**Default Behavior (delete-release-branch-on-failure = true):**
-
-The workflow automatically cleans up:
-- Deletes git tag (if created)
-- Reverts main branch merge commit (if created)
-- Deletes release branch
-- Deletes GitHub Packages artifact (if deployed)
-- Deletes GitHub Release (if created)
-
-After automatic cleanup:
-1. Review the error logs in GitHub Actions
-2. Fix the issues on `develop` branch
-3. Re-run the workflow with the same version numbers
-
-**Keep Branch for Investigation (delete-release-branch-on-failure = false):**
-
-If you disabled automatic cleanup:
-1. The release branch is kept for manual investigation
-2. Investigate the release branch
-3. Manually clean up as needed:
-   ```bash
-   # Delete release branch when ready
-   git push origin --delete release/X.Y.Z
-   # Delete tag if created
-   git push origin --delete vX.Y.Z
-   # Revert main branch merge if needed
-   git checkout main
-   git reset --hard HEAD~1
-   git push origin main --force
-   ```
-4. Fix issues on `develop`
-5. Re-run the workflow
-
-### Hotfix Release (For Production Patches)
-
-Hotfix releases are used to quickly patch critical production issues without waiting for the next scheduled release from develop.
-
-#### When to Use Hotfix vs Standard Release
-
-**Use Hotfix Release when:**
-- Critical bug in production requiring immediate fix
-- Security vulnerability that needs urgent patching
-- Data corruption issue affecting users
-- Service outage or degraded performance issue
-
-**Use Standard Release when:**
-- Normal development cycle
-- Feature releases
-- Non-urgent bug fixes
-- Planned maintenance updates
-
-#### Prerequisites
-
-Before starting a hotfix:
-- Identify the issue in production
-- Determine the hotfix version number (increment patch version from current production release)
-- Have approval for production deployment
-
-#### Step 1: Create Hotfix Branch
-
-Create the hotfix branch from `main` (production):
+First, manually create a hotfix branch from `main`:
 
 ```bash
-# Fetch latest main
-git fetch origin main
 git checkout main
-git pull origin main
-
-# Create hotfix branch (e.g., hotfix/2.14.1)
+git pull
 git checkout -b hotfix/2.14.1
 git push -u origin hotfix/2.14.1
 ```
 
-#### Step 2: Develop and Test Fixes
+### Make Your Fixes
 
-Developers create fix branches from the hotfix branch:
+Developers create fix branches and PR them to the hotfix branch (not develop):
 
 ```bash
-# From hotfix branch
 git checkout hotfix/2.14.1
-git pull
-
-# Create fix branch
-git checkout -b fix/critical-bug-description
-
-# Make fixes
-# ... code changes ...
-
-# Commit and push
-git add .
-git commit -m "fix: description of the fix"
-git push -u origin fix/critical-bug-description
-
-# Create PR targeting hotfix/2.14.1 (NOT develop!)
+git checkout -b fix/the-critical-bug
+# make fixes
+git push -u origin fix/the-critical-bug
+# create PR targeting hotfix/2.14.1
 ```
 
-**Important:** PRs for hotfix work must target the `hotfix/*` branch, not `develop`.
+Merge all the fix PRs to the hotfix branch.
 
-#### Step 3: Merge All Fixes
+### Run the Workflow
 
-1. Review and merge all fix PRs to the hotfix branch
-2. Ensure all tests pass on the hotfix branch
-3. Verify the fixes resolve the production issue
+1. Go to **Actions** → **Release - Hotfix**
+2. Click **Run workflow**
+3. Select your `hotfix/X.Y.Z` branch
+4. Enter the **release version** (e.g., `2.14.1`)
+5. Click **Run workflow**
 
-#### Step 4: Trigger the Hotfix Workflow
+### What Happens
 
-1. **Go to GitHub Actions**
-   - Navigate to: **Actions** → **Hotfix Release**
+Same as a standard release, except:
+- Uses the existing hotfix branch instead of creating a new one
+- Does NOT bump the version on `develop` (it just merges release notes)
 
-2. **Click "Run workflow"**
+### After It's Done
 
-3. **Fill in the parameters:**
-   - **Branch**: Select your `hotfix/*` branch (e.g., `hotfix/2.14.1`)
-   - **Release version**: The hotfix version (e.g., `2.14.1`)
-   - **Skip tests**: Leave unchecked (only for emergencies)
-   - **Skip OWASP check**: Leave unchecked
-   - **Delete release branch on failure**: Leave unchecked (keep for investigation)
+- Verify the release
+- Notify the teams - this is urgent, so make sure they know
+- Consider whether the fix needs to be manually cherry-picked to `develop` if it diverged significantly
 
-4. **Click "Run workflow"**
+---
 
-#### Step 5: What the Workflow Does
+## If Something Goes Wrong
 
-The hotfix workflow performs these steps:
+The workflow automatically tries to clean up on failure:
+- Deletes the git tag
+- Reverts the merge to main
+- Deletes the release branch (for standard releases)
+- Removes the GitHub Packages artifact
+- Deletes the GitHub Release
 
-**1. Validation Phase**
-- Validates version format (X.Y.Z)
-- Confirms running from `hotfix/*` branch
-- Checks tag doesn't already exist
-- Verifies no SNAPSHOT dependencies (except parent BOM)
-- Checks if artifact already exists in GitHub Packages
+Check the job summary for details. If auto-cleanup couldn't handle something, it'll tell you what to clean up manually.
 
-**2. Testing Phase** (unless skip-tests is enabled)
-- Runs full test suite on hotfix branch
-- Runs OWASP dependency check (unless skip-owasp-check is enabled)
+Common issues:
+- **SNAPSHOT dependencies**: Update your deps to release versions
+- **Tag already exists**: You already released this version, use a different one
+- **Tests failed**: Fix them on develop and try again
 
-**3. Prepare Release** (on hotfix branch)
-- Updates `RELEASE_NOTES.md` with hotfix changes from merged PRs
-- Sets version to release version (e.g., `2.14.1`)
-- Commits changes to hotfix branch
+---
 
-**4. Build Artifacts**
-- Builds release artifacts with `mvn clean package`
+## Key Differences: Standard vs Hotfix
 
-**5. Merge to Main**
-- Merges hotfix branch to `main` (no-fast-forward, using theirs strategy)
-- Creates tag `vX.Y.Z` on main branch
-- Pushes to main
-
-**6. Deploy and Release**
-- Deploys artifacts to GitHub Packages
-- Creates GitHub Release with release notes and artifacts
-
-**7. Update Develop Branch**
-- Merges release notes back to `develop`
-- **Does NOT** bump version on develop (key difference from standard releases)
-
-**8. Keep Hotfix Branch**
-- Hotfix branch is **kept** for historical reference
-
-#### Step 6: Post-Hotfix Tasks
-
-After the hotfix workflow completes successfully:
-
-1. **Verify the Hotfix Release**
-   - Check the [GitHub Release](https://github.com/IZGateway/izgw-core/releases)
-   - Verify artifact in [GitHub Packages](https://github.com/IZGateway/izgw-core/packages)
-   - Confirm tag exists on `main` branch
-
-2. **Notify Teams Immediately**
-   - Send **urgent** notification to `izg-hub` team
-   - Send **urgent** notification to `izg-xform` team
-   - Include:
-     - Severity of the issue fixed
-     - Release notes
-     - Upgrade instructions
-     - Deployment timeline
-
-3. **Deploy to Production**
-   - Follow your organization's deployment procedures
-   - Monitor for issues after deployment
-
-4. **Consider Merging to Develop**
-   - Review if the hotfix needs to be manually merged to `develop`
-   - If develop has diverged significantly, the automatic merge may not be sufficient
-   - Create a PR from hotfix branch to develop if needed:
-     ```bash
-     # Create PR to merge hotfix changes to develop
-     git checkout develop
-     git pull origin develop
-     git checkout -b merge/hotfix-2.14.1-to-develop
-     git merge hotfix/2.14.1
-     # Resolve any conflicts
-     git push -u origin merge/hotfix-2.14.1-to-develop
-     # Create PR targeting develop
-     ```
-
-5. **Document the Incident**
-   - Update incident tracking system
-   - Document root cause analysis
-   - Add monitoring or tests to prevent recurrence
-
-#### Key Differences: Hotfix vs Standard Release
-
-| Aspect | Standard Release | Hotfix Release |
-|--------|-----------------|----------------|
-| Source Branch | `develop` | `hotfix/*` (from main) |
-| Creates New Branch | Yes (`release/*`) | No (uses existing `hotfix/*`) |
-| Bump Develop Version | Yes (next SNAPSHOT) | No |
-| Use Case | Scheduled releases | Emergency patches |
-| Default Cleanup on Fail | Delete branch | Keep for investigation |
-| Urgency | Planned | Critical/Urgent |
-
-#### Hotfix Failure Handling
-
-If the hotfix workflow fails:
-
-**Default Behavior (delete-release-branch-on-failure = false):**
-
-The workflow keeps the hotfix branch for investigation. You may need to manually clean up:
-
-1. **Review the error logs** in GitHub Actions
-2. **Fix issues** on the hotfix branch
-3. **Clean up artifacts** if needed (see workflow error messages)
-4. **Re-run the workflow** from the same hotfix branch
-
-For detailed cleanup commands, see the workflow failure summary in GitHub Actions.
-
-## Pre-Release Checklist
-
-Before triggering a release:
-
-### Code Quality
-- [ ] All CI/CD checks pass on `develop`
-- [ ] All tests pass locally
-- [ ] Code review completed for all PRs
-- [ ] No known critical bugs
-
-### Dependencies
-- [ ] All dependencies are on release versions (no SNAPSHOTs except parent BOM)
-  ```bash
-  mvn dependency:list | grep SNAPSHOT | grep -v izgw-bom
-  ```
-- [ ] Security vulnerabilities addressed
-  ```bash
-  mvn org.owasp:dependency-check-maven:check
-  ```
-
-### Version Numbers
-- [ ] Release version follows semantic versioning
-- [ ] Version is not already tagged
-  ```bash
-  git tag -l "vX.Y.Z"  # Should return nothing
-  ```
-- [ ] Next SNAPSHOT version (if specified) is correctly set
-  - If left blank, minor version will auto-increment (e.g., `2.4.0` → `2.5.0-SNAPSHOT`)
-  - If specified, can be just version number (e.g., `2.5.0`, `3.0.0`) or full SNAPSHOT version
-
-### Communication
-- [ ] Dependent teams notified of upcoming release
-- [ ] Release timing coordinated
-- [ ] Breaking changes documented
-
-## Manual Release (Advanced)
-
-If you need to perform a manual release without the GitHub Actions workflow:
-
-### Prerequisites
-```bash
-# Configure Maven settings with GitHub credentials
-cat > ~/.m2/settings.xml << EOF
-<settings>
-  <servers>
-    <server>
-      <id>github</id>
-      <username>YOUR_GITHUB_USERNAME</username>
-      <password>YOUR_GITHUB_TOKEN</password>
-    </server>
-  </servers>
-</settings>
-EOF
-```
-
-### Manual Steps
-
-**1. Create Release Branch from Develop**
-```bash
-git checkout develop
-git pull origin develop
-git checkout -b release/2.4.0git push origin release/2.4.0```
-
-**2. Update RELEASE_NOTES.md**
-```bash
-# Manually edit RELEASE_NOTES.md with release notes
-git add RELEASE_NOTES.md
-git commit -m "docs: update RELEASE_NOTES.md for release 2.4.0"
-```
-
-**3. Set Release Version**
-```bash
-mvn versions:set -DnewVersion=2.4.0 -DgenerateBackupPoms=false
-git add pom.xml
-git commit -m "chore: prepare release 2.4.0"
-git push origin release/2.4.0
-```
-
-**4. Run Tests and Build**
-```bash
-mvn clean test
-mvn org.owasp:dependency-check-maven:check
-mvn clean package
-```
-
-**5. Deploy to GitHub Packages**
-```bash
-mvn deploy -DskipTests
-```
-
-**6. Merge to Main and Tag**
-```bash
-git checkout main
-git pull origin main
-git merge --no-ff release/2.4.0
-git push origin main
-
-git tag -a v2.4.0 -m "Release version 2.4.0"
-git push origin v2.4.0
-```
-
-**7. Update Develop**
-```bash
-git checkout develop
-git pull origin develop
-git merge --no-ff release/2.4.0
-# Choose next version (e.g., 2.5.0-SNAPSHOT for minor bump, 3.0.0-SNAPSHOT for major)
-mvn versions:set -DnewVersion=2.5.0-SNAPSHOT -DgenerateBackupPoms=false
-git add pom.xml
-git commit -m "chore: bump version to 2.5.0-SNAPSHOT"
-git push origin develop
-```
-
-**8. Create GitHub Release**
-- Create release manually via GitHub UI
-- Attach JAR and POM files from `target/`
-
-## Troubleshooting
-
-### Release Workflow Failed
-
-**Issue: Running from wrong branch**
-```
-Error: Release workflow must be run from 'develop' branch
-Solution:
-1. Switch to GitHub Actions UI
-2. Select 'develop' from the branch dropdown
-3. Run the workflow again
-```
-
-**Issue: SNAPSHOT dependencies detected**
-```
-Solution:
-1. Check which dependencies are SNAPSHOTs:
-   mvn dependency:list | grep SNAPSHOT | grep -v izgw-bom
-2. Update dependencies to release versions in pom.xml
-3. Push changes to develop
-4. Re-run the release workflow
-```
-
-**Issue: Tests failed**
-```
-Solution:
-1. Review test logs in GitHub Actions
-2. Fix failing tests on develop branch
-3. Push fixes to develop
-4. Re-run release workflow
-```
-
-**Issue: Release branch already exists**
-```
-Solution:
-1. Check if a previous release attempt is in progress
-2. If abandoned, delete the branch:
-   git push origin --delete release/X.Y.Z3. Re-run the workflow
-```
-
-**Issue: Deploy to GitHub Packages failed**
-```
-Solution:
-1. Verify GITHUB_TOKEN has write:packages permission
-2. Check repository settings allow package publishing
-3. Verify Maven can authenticate to GitHub Packages
-4. If delete-release-branch-on-failure is enabled, cleanup is automatic
-5. Fix the issue and re-run the workflow
-```
-
-### Version Conflicts
-
-**Issue: Tag already exists**
-```bash
-# Check if tag exists
-git ls-remote --tags origin | grep vX.Y.Z
-# If you need to re-release (use with caution!):
-git push origin --delete refs/tags/vX.Y.Zgit tag -d vX.Y.Z
-# Then re-run workflow
-```
-
-**Issue: Version already in GitHub Packages**
-```
-Solution:
-You cannot overwrite a published version in GitHub Packages.
-Either:
-1. Delete the package version from GitHub Packages (see workflow error message)
-2. Or bump to the next patch version (e.g., 2.4.1 instead of 2.4.0)
-```
-
-### Branch Issues
-
-**Issue: Merge conflicts on main**
-```bash
-# This shouldn't happen in automated workflow, but if manual merge needed:
-git checkout main
-git pull origin main
-git merge release/X.Y.Z# Resolve conflicts
-git add .
-git commit -m "merge: resolve conflicts"
-git push origin main
-```
-
-**Issue: Merge conflicts on develop**
-```bash
-git checkout develop
-git pull origin develop
-git merge release/X.Y.Z# Resolve conflicts
-git add .
-git commit -m "merge: resolve conflicts"
-git push origin develop
-```
-
-## Best Practices
-
-### Standard Releases
-
-1. **Always use the automated workflow** - Ensures consistency and reduces errors
-
-2. **Test before releasing** - Never skip tests in production releases
-
-3. **Run from develop only** - The workflow enforces this for standard releases
-
-4. **Communicate early** - Notify dependent teams before releasing
-
-5. **Document breaking changes** - Make upgrade paths clear for consumers
-
-6. **Keep RELEASE_NOTES.md updated** - Workflow does this automatically
-
-7. **Version bumps should be intentional**:
-   - Patch (2.3.0 → 2.3.1): Bug fixes only
-   - Minor (2.3.0 → 2.4.0): New features, backwards-compatible
-   - Major (2.3.0 → 3.0.0): Breaking changes
-
-8. **Release branches are kept** - Don't delete them, they provide history
-
-9. **Review generated RELEASE_NOTES** - Edit manually if needed before merging
-
-10. **Use semantic versioning correctly** - Follow the semver specification
-
-### Hotfix Releases
-
-1. **Use only for critical issues** - Don't use hotfixes for convenience; they're for emergencies
-
-2. **Create from main, not develop** - Hotfix branches must be based on production code
-
-3. **Keep hotfix scope minimal** - Only include fixes for the critical issue
-
-4. **Test thoroughly** - Even urgent fixes need testing; bugs in hotfixes are costly
-
-5. **Target PRs correctly** - All fix PRs must target the `hotfix/*` branch, not develop
-
-6. **Coordinate deployment** - Ensure consuming applications can deploy urgently
-
-7. **Document the incident** - Record root cause, impact, and resolution
-
-8. **Consider merging to develop** - After hotfix, ensure develop gets the fix
-
-9. **Use patch version increments** - Hotfixes increment the patch number (2.14.0 → 2.14.1)
-
-10. **Communicate urgency** - Make clear this is a critical fix requiring immediate attention
-
-## Workflow Diagrams
-
-### Standard Release Workflow
-
-```
-develop (2.4.0-SNAPSHOT)
-   |
-   | [Trigger Release Workflow - Validate]
-   |
-   +---> release/2.4.0 (created)
-   |       |
-   |       | - Update RELEASE_NOTES.md
-   |       | - Set version to 2.4.0
-   |       | - Run tests & OWASP check
-   |       | - Build artifacts
-   |       |
-   |       +---> main (merge release branch)
-   |               |
-   |               +---> tag: v2.4.0
-   |               |
-   |               +---> Deploy to GitHub Packages
-   |               |
-   |               +---> GitHub Release (with artifacts)
-   |
-   +---> develop (merge release branch back)
-           |
-           +---> Bump to 2.5.0-SNAPSHOT
-
-(release branch kept for history)
-```
-
-### Hotfix Release Workflow
-
-```
-main (2.14.0)
-   |
-   | [Manually create hotfix branch]
-   |
-   +---> hotfix/2.14.1 (created from main)
-           |
-           | - Developers create fix/* branches
-           | - PRs merged to hotfix/2.14.1
-           |
-           | [Trigger Hotfix Workflow - Validate]
-           |
-           | - Update RELEASE_NOTES.md
-           | - Set version to 2.14.1
-           | - Run tests & OWASP check
-           | - Build artifacts
-           |
-           +---> main (merge hotfix branch)
-           |       |
-           |       +---> tag: v2.14.1
-           |       |
-           |       +---> Deploy to GitHub Packages
-           |       |
-           |       +---> GitHub Release (with artifacts)
-           |
-           +---> develop (merge RELEASE_NOTES only)
-                   |
-                   +---> NO version bump (keeps existing SNAPSHOT)
-
-(hotfix branch kept for history)
-```
-
-## Additional Resources
-
-- [Semantic Versioning](https://semver.org/)
-- [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
-- [Conventional Commits](https://www.conventionalcommits.org/)
-- [GitHub Packages for Maven](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-apache-maven-registry)
-- [Maven Versions Plugin](https://www.mojohaus.org/versions-maven-plugin/)
-
-## Support
-
-For questions or issues with the release process:
-1. Check this documentation
-2. Review GitHub Actions logs
-3. Contact the izgw-core maintainers
-4. Open an issue in the repository
+| | Standard | Hotfix |
+|---|----------|--------|
+| Source branch | `develop` | `hotfix/*` (from main) |
+| Creates new branch | Yes (`release/*`) | No (uses existing) |
+| Bumps develop version | Yes | No |
+| When to use | Planned releases | Emergency patches |
