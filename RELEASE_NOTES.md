@@ -1,3 +1,8 @@
+## [2.21.0] - 2026-01-14
+
+### Changes
+- chore: remove ability to skip tests and OWASP check from release workflows ([#56](https://github.com/austinmoody/izgw-core/pull/56))
+
 ## [2.20.0] - 2026-01-14
 
 ### Changes
