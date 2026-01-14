@@ -390,6 +390,10 @@ jobs:
         # Discard all local changes from main branch (RELEASE_NOTES.md, etc.)
         echo "Discarding local changes to prepare for develop checkout..."
         git reset --hard HEAD
+        # Remove OWASP report directory
+        # The dependency-check/Dependency-Check_Action action has its Docker
+        # running as root.
+        sudo rm -rf owasp/ || true
         git clean -fd
 
         # Restore workflow artifacts
