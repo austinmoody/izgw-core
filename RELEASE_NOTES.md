@@ -1,3 +1,10 @@
+## [2.20.0] - 2026-01-14
+
+### Changes
+- chore: remove OWASP report directory before develop checkout in release workflow ([#55](https://github.com/austinmoody/izgw-core/pull/55))
+- chore: fix indentation for OWASP dependency check and report upload s… ([#54](https://github.com/austinmoody/izgw-core/pull/54))
+- chore: migrate OWASP dependency check to GitHub Action in release wor… ([#53](https://github.com/austinmoody/izgw-core/pull/53))
+
 ## [2.19.0] - 2026-01-13
 
 ### Changes
