@@ -103,9 +103,9 @@ Same as a standard release, except:
 
 ### After It's Done
 
+- **Check the job summary for "Action Required"** - The workflow tries to merge your hotfix into `develop`, but if there were conflicts, some files might not have made it. If you see a warning listing files, go verify those changes are actually in `develop` (or cherry-pick them manually).
 - Verify the release
 - Notify the teams - this is urgent, so make sure they know
-- Consider whether the fix needs to be manually cherry-picked to `develop` if it diverged significantly
 
 ---
 
