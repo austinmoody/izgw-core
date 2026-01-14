@@ -1,3 +1,8 @@
+## [2.22.1] - 2026-01-14
+
+### Changes
+- docs: rewrite LogControllerBase comments for clarity and emphasis on blacklisting loophole ([#60](https://github.com/austinmoody/izgw-core/pull/60))
+
 ## [2.22.0] - 2026-01-14
 
 ### Changes
