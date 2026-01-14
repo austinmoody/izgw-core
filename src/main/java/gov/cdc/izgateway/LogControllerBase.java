@@ -17,15 +17,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The LogController provides access to in memory logging data on a server.
- * This is used for integration testing to verify log content is as expected
- * when sending messages.
+ * Gives access to in-memory logs on the server. Mostly used for integration
+ * testing to make sure log output looks right when sending messages.
  */
 
-// TODO: Presently, blacklisted users are allowed to access the logs request, b/c blacklisting only
-// applies to the SOAP Stack.  Once we apply it to the full HTTP stack, we will have to provide
-// SECURE mechanism for clearing the blacklisted state of the testing user.  It cannot be said
-// to have been applied to the full stack until this loophole is resolved.
+// TODO: Blacklisted users can still hit this endpoint because blacklisting only
+// applies to the SOAP stack right now. When we extend it to the full HTTP stack,
+// we'll need a secure way to clear the blacklist state for test users. Until then,
+// this is a bit of a loophole.
 public class LogControllerBase implements InitializingBean {
 
 	private MemoryAppender logData = null;
@@ -38,9 +37,7 @@ public class LogControllerBase implements InitializingBean {
 		logData = MemoryAppender.getInstance("memory");
 	}
 
-	// TODO: Presently, blacklisted users are allowed to access the logs request, b/c blacklisting only
-	// applies to the SOAP Stack.  Once we apply it to the full HTTP stack, we will have to provide
-	// SECURE mechanism to clearing the state.
+	// TODO: Same blacklist loophole as noted above - see class comment.
 	protected List<LogEvent> getLogs(String search) {
 
 		List<ILoggingEvent> events;
