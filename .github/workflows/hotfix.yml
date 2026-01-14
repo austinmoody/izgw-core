@@ -17,16 +17,6 @@ on:
         description: 'Hotfix release version (e.g., 2.14.1)'
         required: true
         type: string
-      skip-tests:
-        description: 'Skip tests (use only for emergency releases)'
-        required: false
-        type: boolean
-        default: false
-      skip-owasp-check:
-        description: 'Skip OWASP dependency check'
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   hotfix:
@@ -34,6 +24,4 @@ jobs:
     secrets: inherit
     with:
       release-version: ${{ inputs.release-version }}
-      skip-tests: ${{ inputs.skip-tests }}
-      skip-owasp-check: ${{ inputs.skip-owasp-check }}
       release-type: hotfix

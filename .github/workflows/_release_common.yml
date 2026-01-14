@@ -20,16 +20,6 @@ on:
         description: 'Next SNAPSHOT version (e.g., 2.5.0 or 3.0.0) - leave blank to auto-increment minor version. Only used for standard releases.'
         required: false
         type: string
-      skip-tests:
-        description: 'Skip tests (use only for emergency releases)'
-        required: false
-        type: boolean
-        default: false
-      skip-owasp-check:
-        description: 'Skip OWASP dependency check'
-        required: false
-        type: boolean
-        default: false
       release-type:
         description: 'Type of release: standard (from develop) or hotfix (from hotfix/* branch)'
         required: false
@@ -319,10 +309,9 @@ jobs:
         echo "- Test"
         echo "- Build artifacts"
         echo "- Deploy artifacts to GitHub Packages"
-        mvn -B clean test package deploy -DskipDependencyCheck=true -DskipTests=${{ inputs.skip-tests }}
+        mvn -B clean test package deploy -DskipDependencyCheck=true
 
     - name: Run OWASP Dependency Check
-      if: ${{ !inputs.skip-owasp-check }}
       env:
         # Per https://github.com/marketplace/actions/dependency-check, fix JAVA_HOME location for action
         JAVA_HOME: /opt/jdk
@@ -342,7 +331,6 @@ jobs:
           --disableAssembly      
 
     - name: Upload dependency check report
-      if: ${{ !inputs.skip-owasp-check }}
       uses: actions/upload-artifact@v4
       with:
         name: dependency-check-report

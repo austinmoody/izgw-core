@@ -15,16 +15,6 @@ on:
         description: 'Next SNAPSHOT version (e.g., 2.5.0 or 3.0.0) - leave blank to auto-increment minor version'
         required: false
         type: string
-      skip-tests:
-        description: 'Skip tests (use only for emergency releases)'
-        required: false
-        type: boolean
-        default: false
-      skip-owasp-check:
-        description: 'Skip OWASP dependency check'
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   release:
@@ -33,6 +23,4 @@ jobs:
     with:
       release-version: ${{ inputs.release-version }}
       next-snapshot-version: ${{ inputs.next-snapshot-version }}
-      skip-tests: ${{ inputs.skip-tests }}
-      skip-owasp-check: ${{ inputs.skip-owasp-check }}
       release-type: standard
