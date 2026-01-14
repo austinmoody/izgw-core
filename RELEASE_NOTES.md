@@ -1,3 +1,8 @@
+## [2.21.1] - 2026-01-14
+
+### Changes
+- docs: simplify release documentation and add hotfix merge verificatio… ([#57](https://github.com/austinmoody/izgw-core/pull/57))
+
 ## [2.21.0] - 2026-01-14
 
 ### Changes
