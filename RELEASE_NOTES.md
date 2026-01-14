@@ -1,3 +1,8 @@
+## [2.22.0] - 2026-01-14
+
+### Changes
+- docs: clarify hotfix merge verification steps in release process ([#58](https://github.com/austinmoody/izgw-core/pull/58))
+
 ## [2.21.1] - 2026-01-14
 
 ### Changes
