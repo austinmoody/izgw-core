@@ -17,15 +17,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * RIGHT, LISTEN UP! This class serves up in-memory logs from the server.
- * It's for integration testing - making sure your log output isn't absolute
- * RUBBISH when you send messages. Simple as that. Beautiful.
+ * Gives access to in-memory logs on the server. Mostly used for integration
+ * testing to make sure log output looks right when sending messages.
  */
 
-// TODO: Oh for crying out loud! Blacklisted users can STILL access this endpoint
-// because some DONKEY only applied blacklisting to the SOAP stack! When we extend
-// it to the full HTTP stack, we need a PROPER secure way to clear the blacklist
-// for test users. This loophole is RAW and it's EMBARRASSING. Sort it out!
+// TODO: Blacklisted users can still hit this endpoint because blacklisting only
+// applies to the SOAP stack right now. When we extend it to the full HTTP stack,
+// we'll need a secure way to clear the blacklist state for test users. Until then,
+// this is a bit of a loophole.
 public class LogControllerBase implements InitializingBean {
 
 	private MemoryAppender logData = null;
@@ -38,7 +37,7 @@ public class LogControllerBase implements InitializingBean {
 		logData = MemoryAppender.getInstance("memory");
 	}
 
-	// TODO: Same bloody loophole as above. READ THE CLASS COMMENT. I'm not repeating myself!
+	// TODO: Same blacklist loophole as noted above - see class comment.
 	protected List<LogEvent> getLogs(String search) {
 
 		List<ILoggingEvent> events;
