@@ -19,7 +19,9 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
+  packages: write
+  pull-requests: read
 
 jobs:
   hotfix:
