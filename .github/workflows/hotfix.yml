@@ -18,6 +18,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   hotfix:
     uses: ./.github/workflows/_release_common.yml
