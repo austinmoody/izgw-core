@@ -1,3 +1,10 @@
+## [2.23.0] - 2026-01-15
+
+### Changes
+- chore: update permissions in release and hotfix workflows ([#62](https://github.com/austinmoody/izgw-core/pull/62))
+- chore: add explicit permissions to release, hotfix, and common workflows ([#61](https://github.com/austinmoody/izgw-core/pull/61))
+- docs: reword LogControllerBase comments for clarity and conciseness ([#59](https://github.com/austinmoody/izgw-core/pull/59))
+
 ## [2.22.1] - 2026-01-14
 
 ### Changes
