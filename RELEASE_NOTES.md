@@ -1,3 +1,9 @@
+## [2.24.0] - 2026-01-20
+
+### Changes
+- Add site command to mvn ([#64](https://github.com/austinmoody/izgw-core/pull/64))
+- Add publish to workflow ([#63](https://github.com/austinmoody/izgw-core/pull/63))
+
 ## [2.23.0] - 2026-01-15
 
 ### Changes
