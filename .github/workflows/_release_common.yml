@@ -325,7 +325,7 @@ jobs:
         project: IZG Core
         path: target/izgw-core-${{ inputs.release-version }}.jar
         format: 'HTML'
-        out: 'owasp'
+        out: 'target/site'
         args: >
           --ossIndexUsername ${{ secrets.OSS_INDEX_USERNAME }}
           --ossIndexPassword ${{ secrets.OSS_INDEX_PASSWORD }}        
@@ -339,8 +339,22 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: dependency-check-report
-        path: ./owasp/dependency-check-report.html
+        path: ./target/site/dependency-check-report.html
         if-no-files-found: ignore
+        
+    - name: Publish Site (Current)
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/site
+        destination_dir: current
+
+    - name: Publish Site (Versioned)
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/site
+        destination_dir: v${{ env.BASE_TAG }}
 
     - name: Merge release branch to main
       run: |
@@ -386,7 +400,7 @@ jobs:
         # Remove OWASP report directory
         # The dependency-check/Dependency-Check_Action action has its Docker
         # running as root.
-        sudo rm -rf owasp/ || true
+        sudo rm -rf target/site/dependency-check-report.html || true
         git clean -fd
 
         # Restore workflow artifacts
