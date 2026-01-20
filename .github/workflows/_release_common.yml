@@ -314,7 +314,7 @@ jobs:
         echo "- Test"
         echo "- Build artifacts"
         echo "- Deploy artifacts to GitHub Packages"
-        mvn -B clean test package deploy -DskipDependencyCheck=true
+        mvn -B clean test package deploy site -DskipDependencyCheck=true
 
     - name: Run OWASP Dependency Check
       env:
