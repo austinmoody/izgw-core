@@ -1,3 +1,8 @@
+## [2.25.0] - 2026-01-21
+
+### Changes
+- Add missing maven setup ([#65](https://github.com/austinmoody/izgw-core/pull/65))
+
 ## [2.24.0] - 2026-01-20
 
 ### Changes
