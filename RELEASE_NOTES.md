@@ -1,3 +1,8 @@
+## [2.27.0] - 2026-01-22
+
+### Changes
+- Combine cleanup and notification failure steps ([#67](https://github.com/austinmoody/izgw-core/pull/67))
+
 ## [2.26.0] - 2026-01-22
 
 ### Changes
