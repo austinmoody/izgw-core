@@ -62,7 +62,7 @@ jobs:
       run: |
         mkdir -p ~/.m2 \
         && cat << EOF > ~/.m2/toolchains.xml
-        <?xml version="1.0" encoding="UTF8"?>
+        <?xml version="1.0" encoding="UTF-8"?>
         <toolchains>
           <toolchain>
             <type>jdk</type>
@@ -206,7 +206,7 @@ jobs:
         # Check regular dependencies
         # Get the current version of this project from the pom.xml, we want to filter this out of the dependency:list check
         POM_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-        SNAPSHOT_DEPS=$(mvn dependency:list | grep -v $POM_VERSION | grep SNAPSHOT || true)
+        SNAPSHOT_DEPS=$(mvn dependency:list | grep -v "$POM_VERSION" | grep SNAPSHOT || true)
 
         # Check parent POM version separately (not included in dependency:list)
         PARENT_VERSION=$(mvn help:evaluate -Dexpression=project.parent.version -q -DforceStdout)
@@ -250,7 +250,7 @@ jobs:
         else
           echo "Generating release note from $PREVIOUS_TAG to HEAD"
           # Get merge commits since the previous tag
-          PR_CHANGES=$(git log ${PREVIOUS_TAG}..HEAD --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | xargs -I {} gh pr view {} --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"')
+          PR_CHANGES=$(git log ${PREVIOUS_TAG}..HEAD --merges --oneline | grep "pull request" | sed -E 's/.*#([0-9]+).*/\1/' | while read -r pr; do gh pr view "$pr" --json number,title,url --jq '"- \(.title) ([#\(.number)](\(.url)))"' 2>/dev/null || echo ""; done | grep -v "^$")
         fi
 
         # Check if we found any PRs
@@ -400,7 +400,7 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./target/site
-        destination_dir: v${{ env.BASE_TAG }}
+        destination_dir: v${{ inputs.release-version }}
 
     - name: Merge release branch to main
       run: |
