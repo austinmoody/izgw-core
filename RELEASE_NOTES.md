@@ -1,3 +1,8 @@
+## [2.26.0] - 2026-01-22
+
+### Changes
+- chore: fix XML encoding and improve dependency filtering in release workflow ([#66](https://github.com/austinmoody/izgw-core/pull/66))
+
 ## [2.25.0] - 2026-01-21
 
 ### Changes
