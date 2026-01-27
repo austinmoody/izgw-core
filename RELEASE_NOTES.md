@@ -1,3 +1,8 @@
+## [2.28.0] - 2026-01-27
+
+### Changes
+- chore: update release workflow to include install step and remove duplicate failure notification ([#68](https://github.com/austinmoody/izgw-core/pull/68))
+
 ## [2.27.0] - 2026-01-22
 
 ### Changes
